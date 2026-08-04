@@ -1,0 +1,16 @@
+# ข้อมูลทั้งหมด ไม่เข้า git (ไฟล์ใหญ่ ใช้ HF เก็บแทน)
+data/
+*.duckdb
+*.duckdb.wal
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

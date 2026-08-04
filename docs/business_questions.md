@@ -1,0 +1,320 @@
+# Business Questions
+
+คำถามธุรกิจของโปรเจกต์ แบ่งเป็น 2 กลุ่ม
+
+- **กลุ่ม A (5 ข้อ)** — ตอบได้ด้วยการ **analyze** ข้อมูลตรง ๆ (SQL/pandas บน star schema)
+  ไม่ต้องสร้างโมเดล เพราะเป็นการ**บรรยายสิ่งที่เกิดขึ้นไปแล้ว**ด้วยการนับและค่าเฉลี่ย
+- **กลุ่ม B (5 ข้อ)** — ต้อง **สร้างโมเดล** เพราะต้อง**อ่านข้อความอิสระ**, **ทำนายอนาคต**,
+  หรือ**หาโครงสร้างที่ซ่อนอยู่**ซึ่งไม่มีคอลัมน์ไหนบอกตรง ๆ
+
+> เส้นแบ่ง: ถ้า `GROUP BY` ตอบได้ = กลุ่ม A / ถ้าต้องเรียนรู้รูปแบบจากข้อมูล = กลุ่ม B
+
+SQL ข้างล่างรันบน DuckDB warehouse ที่ stage ELT สร้าง (`data/warehouse/marketplace.duckdb`)
+หรือจะรันบน Parquet ที่ export แล้วก็ได้ โดยเปลี่ยน `marts.fact_review` เป็น
+`'data/elt_export/fact_review/**/*.parquet'`
+
+---
+
+# กลุ่ม A — ตอบได้จากการ analyze
+
+## A1. แบรนด์ไหนแข็งแกร่งที่สุดในแต่ละหมวดย่อย และเราควรใช้ใครเป็น benchmark?
+
+**ทำไมสำคัญ** — ก่อนจะบอกว่าสินค้าเรา "ดี" หรือ "แย่" ต้องรู้ก่อนว่าเทียบกับใคร
+คำถามนี้ให้เส้นฐาน (baseline) ของแต่ละหมวด และชี้ว่าแบรนด์ไหนคือคู่แข่งตัวจริง
+
+**ข้อมูลที่ใช้** — `fact_review.rating` × `dim_product.store`, `dim_product.category`
+
+```sql
+SELECT
+    p.category,
+    p.store                                  AS brand,
+    count(*)                                 AS n_reviews,
+    count(DISTINCT p.product_key)            AS n_products,
+    round(avg(f.rating), 2)                  AS avg_rating,
+    round(avg(f.is_negative::INT), 3)        AS negative_share
+FROM marts.fact_review f
+JOIN marts.dim_product p USING (product_key)
+WHERE p.store IS NOT NULL
+GROUP BY p.category, p.store
+HAVING count(*) >= 200                       -- ตัดแบรนด์ที่รีวิวน้อยเกินจะเชื่อถือได้
+QUALIFY row_number() OVER (
+    PARTITION BY p.category ORDER BY avg(f.rating) DESC
+) <= 10
+ORDER BY p.category, avg_rating DESC;
+```
+
+**ระวัง** — `HAVING count(*) >= 200` สำคัญมาก ถ้าไม่ใส่ แบรนด์ที่มีรีวิวเดียว 5 ดาว
+จะขึ้นอันดับ 1 ทุกครั้ง ควรลองปรับเกณฑ์ดูว่าอันดับเปลี่ยนไหม
+
+---
+
+## A2. ราคาแพงขึ้นแล้วลูกค้าพอใจขึ้นจริงไหม และมีช่วงราคาไหนที่ลูกค้าผิดหวังเป็นระบบ?
+
+**ทำไมสำคัญ** — ถ้าช่วงราคาหนึ่งมีสัดส่วนรีวิวเชิงลบสูงผิดปกติ แปลว่าสินค้าในช่วงนั้น
+"ตั้งราคาเกินคุณค่าที่ส่งมอบ" เป็นสัญญาณให้ทบทวนการตั้งราคาหรือการสื่อสารความคาดหวัง
+
+**ข้อมูลที่ใช้** — `dim_product.price_band` × `fact_review.rating`, `is_negative`
+
+```sql
+SELECT
+    p.category,
+    p.price_band,
+    count(*)                          AS n_reviews,
+    round(avg(f.rating), 2)           AS avg_rating,
+    round(avg(f.is_negative::INT), 3) AS negative_share,
+    round(avg(f.is_positive::INT), 3) AS positive_share
+FROM marts.fact_review f
+JOIN marts.dim_product p USING (product_key)
+WHERE p.price_band <> 'Unknown'       -- สินค้าที่ไม่รู้ราคาไม่ควรปนในการวิเคราะห์ราคา
+GROUP BY p.category, p.price_band
+ORDER BY p.category, avg_rating DESC;
+```
+
+**ระวัง** — metadata ราคาขาดหายเยอะ (`price_band = 'Unknown'`) ต้องกรองออกและ
+**รายงานด้วยว่ากรองออกไปกี่ %** ไม่งั้นข้อสรุปจะดูหนักแน่นเกินจริง
+
+---
+
+## A3. สินค้าตัวไหนกำลังขาลง — คะแนนช่วงหลังตกจากค่าเฉลี่ยตลอดชีพ?
+
+**ทำไมสำคัญ** — นี่คือคำถามที่ให้ **early warning** มีค่าที่สุดในโปรเจกต์นี้
+คะแนนเฉลี่ยรวมของสินค้าจะขยับช้ามากเพราะถูกถ่วงด้วยรีวิวเก่าจำนวนมาก
+สินค้าที่คุณภาพเพิ่งแย่ลง (เปลี่ยนซัพพลายเออร์/สูตร) จะยังดูดีอยู่บนหน้าเว็บ
+การเทียบ "ช่วงหลัง vs ตลอดชีพ" ทำให้เห็นปัญหาก่อนคะแนนรวมจะตก
+
+**ข้อมูลที่ใช้** — `fact_review.rating` × `dim_date.year`
+
+```sql
+WITH per_product AS (
+    SELECT
+        f.product_key,
+        avg(f.rating)                                        AS lifetime_avg,
+        count(*)                                             AS lifetime_n,
+        avg(f.rating) FILTER (WHERE d.year >= 2022)          AS recent_avg,
+        count(*)      FILTER (WHERE d.year >= 2022)          AS recent_n
+    FROM marts.fact_review f
+    JOIN marts.dim_date d USING (date_key)
+    GROUP BY f.product_key
+)
+SELECT
+    p.category,
+    p.product_title,
+    p.store,
+    pp.lifetime_n,
+    round(pp.lifetime_avg, 2)                  AS lifetime_avg,
+    pp.recent_n,
+    round(pp.recent_avg, 2)                    AS recent_avg,
+    round(pp.recent_avg - pp.lifetime_avg, 2)  AS delta
+FROM per_product pp
+JOIN marts.dim_product p USING (product_key)
+WHERE pp.recent_n >= 30 AND pp.lifetime_n >= 100   -- ต้องมีรีวิวพอทั้งสองช่วง
+ORDER BY delta ASC
+LIMIT 25;
+```
+
+**ระวัง** — `recent_n >= 30` กันไม่ให้สินค้าที่มีรีวิวใหม่ 2 อัน (บังเอิญ 1 ดาวทั้งคู่)
+ขึ้นมาเป็นอันดับ 1 ควรทำ significance test ก่อนสรุปจริงจัง
+
+> `product_title` ใน dataset #1 ยังเป็นข้อความดิบ จะเห็น `<b>...</b>` และ `&amp;` ปนอยู่
+> ถ้าต้องการชื่อที่สะอาดให้ใช้ `product_features.parquet` จาก dataset #2
+
+---
+
+## A4. รีวิวแบบไหนที่คนซื้ออ่านแล้วบอกว่ามีประโยชน์?
+
+**ทำไมสำคัญ** — ใช้ตัดสินใจว่าจะ **จัดลำดับรีวิวบนหน้าสินค้า**อย่างไร และจะ
+**กระตุ้นให้ลูกค้าเขียนรีวิวแบบไหน** (เช่น ถ้ารีวิวที่มีรูปมีประโยชน์กว่าชัดเจน
+ก็ควรออกแบบให้แนบรูปง่ายขึ้น)
+
+**ข้อมูลที่ใช้** — `fact_review.helpful_vote`, `has_images`, `verified_purchase`
+และความยาวจาก `review_text` (หรือ `word_count` ใน dataset #2)
+
+```sql
+SELECT
+    f.has_images,
+    f.verified_purchase,
+    CASE
+        WHEN length(t.review_text) < 100 THEN '1. สั้น (<100 ตัวอักษร)'
+        WHEN length(t.review_text) < 500 THEN '2. กลาง (100-500)'
+        ELSE                                  '3. ยาว (500+)'
+    END AS length_bucket,
+    count(*)                                       AS n_reviews,
+    round(avg(f.helpful_vote), 2)                  AS avg_helpful,
+    round(median(f.helpful_vote), 2)               AS median_helpful,
+    round(avg((f.helpful_vote > 0)::INT), 3)       AS share_with_any_vote
+FROM marts.fact_review f
+JOIN marts.review_text t USING (review_id)
+GROUP BY 1, 2, 3
+ORDER BY 3, 1, 2;
+```
+
+**ระวัง** — `helpful_vote` มีอคติเรื่อง**อายุและตำแหน่ง**: รีวิวเก่ากว่ามีเวลาสะสมโหวต
+มากกว่า และรีวิวที่ขึ้นหน้าแรกได้เปรียบ ค่าเฉลี่ยดิบจึงไม่ใช่ "คุณภาพ" ล้วน ๆ
+ดูค่ามัธยฐานควบคู่ด้วยเพราะการแจกแจงเบ้ขวาหนัก (ส่วนใหญ่ได้ 0 โหวต)
+
+---
+
+## A5. สามหมวดย่อยภายใต้ "ความงามและการดูแลตัวเอง" ต่างกันอย่างไร และคะแนนของหมวดไหนน่าเชื่อถือน้อยที่สุด?
+
+**ทำไมสำคัญ** — เราจงใจเลือก 3 หมวดที่รวมเป็นหมวดใหญ่เดียวกันได้ คำถามนี้จึงตรวจว่า
+"เอามารวมกันวิเคราะห์ได้จริงไหม" ถ้าสัดส่วน verified หรือความแตกขั้วต่างกันมาก
+แปลว่าห้ามเอาคะแนนข้ามหมวดมาเทียบกันตรง ๆ ต้องปรับฐานก่อน
+
+**ข้อมูลที่ใช้** — `fact_review` × `dim_user`, สัดส่วน verified และความแตกขั้ว
+
+```sql
+SELECT
+    f.category,
+    count(*)                                          AS n_reviews,
+    count(DISTINCT f.product_key)                     AS n_products,
+    count(DISTINCT f.user_key)                        AS n_users,
+    round(avg(f.rating), 2)                           AS avg_rating,
+    round(avg(f.verified_purchase::INT), 3)           AS verified_share,
+    -- ความแตกขั้ว: สัดส่วนรีวิวที่ให้ 1 หรือ 5 ดาว (ไม่มีความเห็นกลาง ๆ)
+    round(avg((f.rating IN (1, 5))::INT), 3)          AS polarized_share,
+    round(avg(f.has_images::INT), 3)                  AS with_images_share,
+    -- รีวิวจากคนที่รีวิวครั้งเดียวจบ = เสี่ยงเป็นรีวิวจ้างมากกว่า
+    round(avg((u.reviewer_segment = 'One-off')::INT), 3) AS oneoff_reviewer_share
+FROM marts.fact_review f
+JOIN marts.dim_user u USING (user_key)
+GROUP BY f.category
+ORDER BY n_reviews DESC;
+```
+
+**ระวัง** — ถ้าหมวดไหน `verified_share` ต่ำและ `oneoff_reviewer_share` สูงพร้อมกัน
+ให้ถือว่าคะแนนหมวดนั้น "น่าเชื่อถือน้อยกว่า" และควรระบุไว้ในทุกข้อสรุปที่เทียบข้ามหมวด
+
+---
+
+# กลุ่ม B — ต้องสร้างโมเดล
+
+ทุกข้อใช้ dataset #2 (`reviews/`, `product_features.parquet`) ที่ stage preprocessing
+สร้างไว้ให้แล้ว — feature กับ label พร้อมใช้ ไม่ต้อง join เอง
+
+## B1. สินค้าใหม่ที่กำลังจะรับเข้ามาขาย มีแนวโน้มจะได้คะแนนเท่าไหร่? — **Regression**
+
+**ทำไมต้องใช้โมเดล** — สินค้าใหม่ยัง**ไม่มีรีวิวเลย** จะ `GROUP BY` หาค่าเฉลี่ยของมันไม่ได้
+ต้องเรียนรู้ความสัมพันธ์จากสินค้าที่มีอยู่แล้วมาทำนายตัวที่ยังไม่มีข้อมูล
+
+**ตั้งโจทย์**
+- Target: `avg_rating` (ต่อเนื่อง) จาก `product_features.parquet`
+- Feature: `price`, `price_band`, `category`, `store` (encode แบบ target/frequency)
+  — ถ้าอยากได้ตัวแทนความนิยมเพิ่ม ให้ join `listed_rating_count` มาจาก
+  `dim_product` ของ dataset #1 (ไม่ได้อยู่ใน `product_features`)
+- **ห้ามใช้** `listed_avg_rating` เป็น feature เด็ดขาด — มันคือคำตอบที่เรากำลังจะทำนาย
+  ใส่เข้าไปแล้วโมเดลจะได้คะแนนสวยหลอก ๆ (data leakage)
+- โมเดล: Linear/Ridge regression เป็นเส้นฐาน แล้วเทียบกับ Gradient Boosting
+  (LightGBM/XGBoost)
+- วัดผล: MAE, RMSE เทียบกับ baseline "ทายค่าเฉลี่ยของหมวดเสมอ" — ถ้าชนะ baseline ไม่ได้
+  แปลว่า feature ที่มีไม่พอ ต้องรายงานตามตรง
+
+**ระวัง** — ต้องแบ่ง train/test **ตามเวลา** (ใช้ `first_review_date` ของสินค้า)
+ไม่ใช่สุ่ม ไม่งั้นคือการทำนายอดีตจากอนาคต และ `store` มี cardinality สูงมาก
+ระวัง target encoding รั่ว ต้องทำ cross-fold encoding
+
+---
+
+## B2. ข้อความในรีวิวตรงกับจำนวนดาวที่ให้ไหม? — **Classification (NLP)**
+
+**ทำไมต้องใช้โมเดล** — ต้อง**อ่านและเข้าใจข้อความ** ไม่มีคอลัมน์ไหนบอกได้ว่ารีวิวนี้
+"น้ำเสียงบวกหรือลบ" SQL นับคำได้แต่ไม่เข้าใจความหมาย
+
+**ตั้งโจทย์**
+- Target: `sentiment` (negative/neutral/positive) — มีให้แล้วใน dataset #2
+- Feature: `text_full`
+- โมเดล: TF-IDF + Logistic Regression เป็นเส้นฐาน แล้วเทียบกับ fine-tune
+  DistilBERT/RoBERTa
+- วัดผล: macro-F1 (ไม่ใช่ accuracy เพราะคลาสไม่สมดุลหนัก)
+- **ประโยชน์จริงอยู่ตรงนี้** — เอาโมเดลไปหา**รีวิวที่โมเดลทายว่าลบแต่ลูกค้าให้ 5 ดาว**
+  (หรือกลับกัน) คือกลุ่มที่ให้ดาวผิดพลาด/ประชด/กดดาวตามของแถม ซึ่งทำให้คะแนนสินค้าเพี้ยน
+
+**ระวัง** — คลาสไม่สมดุล (4–5 ดาวเยอะกว่ามาก) ต้องใช้ `class_weight='balanced'`
+หรือ resample และต้องใช้ split ที่เตรียมไว้ (`split` column) ไม่สุ่มใหม่
+
+---
+
+## B3. สินค้าในพอร์ตแบ่งได้เป็นกี่กลุ่มตามลักษณะ performance? — **Clustering**
+
+**ทำไมต้องใช้โมเดล** — เราไม่รู้ล่วงหน้าว่ามีกี่กลุ่มและแบ่งด้วยเกณฑ์อะไร
+ถ้าตั้งกฎเอง (เช่น "คะแนน > 4 = ดี") ก็แค่ยัดความเชื่อของเราลงไป
+clustering ให้ข้อมูลเป็นคนบอกโครงสร้างเอง
+
+**ตั้งโจทย์**
+- ข้อมูล: `product_features.parquet` (1 แถว = 1 สินค้า)
+- Feature: `avg_rating`, `rating_std`, `negative_share`, `polarized_share`,
+  `verified_share`, `n_reviews` (log), `review_span_days`
+- โมเดล: K-Means (เลือก k ด้วย elbow + silhouette) หรือ HDBSCAN ถ้าอยากให้มี noise
+  ต้อง standardize ก่อนเสมอ
+- ผลลัพธ์ที่คาดหวัง: กลุ่มแบบ "ดาวเด่นมั่นคง" (คะแนนสูง sd ต่ำ),
+  "แตกขั้ว" (คะแนนกลาง sd สูง polarized สูง), "ขาลง", "ยังใหม่ข้อมูลน้อย"
+- ใช้ทำอะไรต่อ: ตั้งกลยุทธ์ต่อกลุ่ม — กลุ่มแตกขั้วต้องแก้ที่การสื่อสารความคาดหวัง
+  กลุ่มขาลงต้องตรวจสายการผลิต
+
+**ระวัง** — K-Means ไวต่อสเกลมาก ถ้าไม่ standardize `n_reviews` จะครอบงำทุกอย่าง
+และควรตัดสินค้าที่มีรีวิวน้อยกว่า ~20 ออกก่อน เพราะสถิติยังไม่นิ่ง
+
+---
+
+## B4. ลูกค้าบ่นเรื่องอะไรบ้างในรีวิวเชิงลบ และแต่ละหมวดบ่นต่างกันไหม? — **Topic Modeling**
+
+**ทำไมต้องใช้โมเดล** — เรารู้ว่ารีวิว 1–2 ดาวคือ "ไม่พอใจ" แต่**ไม่รู้ว่าไม่พอใจเรื่องอะไร**
+คำตอบอยู่ในข้อความล้วน ๆ และมีเป็นแสนรีวิว อ่านเองไม่ไหว
+ต้องให้โมเดลจัดกลุ่มหัวข้อให้
+
+**ตั้งโจทย์**
+- ข้อมูล: `reviews/` กรอง `is_negative = true`
+- โมเดล: BERTopic (embedding + UMAP + HDBSCAN) หรือ LDA ถ้าต้องการอธิบายง่ายกว่า
+- วิเคราะห์ต่อ: เทียบสัดส่วนหัวข้อ**ข้ามหมวด** — คาดว่า `Amazon_Fashion` จะเด่นเรื่อง
+  ไซซ์/ความพอดี ส่วน `All_Beauty` เด่นเรื่องอาการแพ้/กลิ่น/ของปลอม
+  และดูว่าหัวข้อไหน**โตขึ้นตามเวลา** (สัญญาณปัญหาใหม่)
+- ใช้ทำอะไรต่อ: ส่งหัวข้อที่พบบ่อยที่สุดต่อให้ทีมพัฒนาสินค้าและทีมเขียนรายละเอียดสินค้า
+
+**ระวัง** — ต้องประเมินคุณภาพหัวข้อด้วยคน (อ่านตัวอย่าง 10–20 รีวิวต่อหัวข้อ)
+ค่า coherence อย่างเดียวไม่พอ และ topic ที่ได้ขึ้นกับ random seed ต้อง fix seed ไว้
+
+---
+
+## B5. รีวิวไหนน่าสงสัยว่าเป็นรีวิวปลอมหรือรีวิวจ้าง? — **Anomaly Detection**
+
+**ทำไมต้องใช้โมเดล** — ไม่มีเฉลยว่ารีวิวไหนปลอม (ไม่มี label) และ "ความน่าสงสัย"
+ไม่ใช่เงื่อนไขเดียวแต่เป็น**รูปแบบร่วม**ของหลายสัญญาณ — เขียนเป็น `WHERE` ไม่ได้
+
+**ตั้งโจทย์**
+- ข้อมูล: `reviews/` + `dim_user`
+- Feature ที่บ่งชี้: `verified_purchase = false`, `reviewer_segment = 'One-off'`,
+  `user_lifetime_reviews` ต่ำ, `rating_vs_product_avg` เบี่ยงมาก, `word_count` สั้นผิดปกติ,
+  ข้อความซ้ำกับรีวิวอื่น, รีวิวกระจุกตัวในช่วงเวลาสั้น ๆ ของสินค้าเดียวกัน (burstiness)
+- โมเดล: Isolation Forest / Local Outlier Factor (unsupervised)
+  เสริมด้วยการตรวจข้อความซ้ำด้วย MinHash/cosine similarity
+- วัดผล: ไม่มี label จึงวัด precision ตรง ๆ ไม่ได้ ต้อง**สุ่มตัวอย่างที่โมเดลชี้มาอ่านเอง**
+  แล้วรายงาน precision@100 จากการตรวจด้วยคน
+
+**ระวัง** — ผลลัพธ์เป็น "น่าสงสัย" ไม่ใช่ "ปลอมแน่นอน" ห้ามเอาไปลงโทษผู้ใช้
+ใช้ได้แค่เป็นการคัดกรองเบื้องต้น และควรรายงานว่าถ้าตัดรีวิวกลุ่มนี้ออกแล้ว
+คะแนนสินค้าเปลี่ยนไปมากแค่ไหน — นั่นคือคุณค่าทางธุรกิจที่แท้จริงของข้อนี้
+
+---
+
+## สรุปตาราง
+
+| # | คำถาม | วิธีตอบ | ผลลัพธ์ที่ได้ |
+|---|-------|--------|-------------|
+| A1 | แบรนด์ไหนแข็งที่สุดในแต่ละหมวด | `GROUP BY` + `HAVING` | ตาราง benchmark |
+| A2 | ราคาแพงขึ้น = พอใจขึ้นจริงไหม | `GROUP BY price_band` | จุดที่ตั้งราคาเกินคุณค่า |
+| A3 | สินค้าไหนกำลังขาลง | filtered aggregate เทียบช่วงเวลา | รายชื่อสินค้าต้องเฝ้าระวัง |
+| A4 | รีวิวแบบไหนมีประโยชน์ | `GROUP BY` คุณลักษณะรีวิว | เกณฑ์จัดลำดับรีวิว |
+| A5 | 3 หมวดต่างกันแค่ไหน คะแนนใครน่าเชื่อถือ | `GROUP BY category` | เงื่อนไขการเทียบข้ามหมวด |
+| B1 | สินค้าใหม่จะได้คะแนนเท่าไหร่ | Regression | คัดกรองก่อนรับเข้าขาย |
+| B2 | ข้อความตรงกับดาวไหม | Classification (NLP) | หารีวิวที่ให้ดาวเพี้ยน |
+| B3 | สินค้าแบ่งได้กี่กลุ่ม | Clustering | กลยุทธ์รายกลุ่ม |
+| B4 | ลูกค้าบ่นเรื่องอะไร | Topic modeling | หัวข้อปัญหาส่งต่อทีมสินค้า |
+| B5 | รีวิวไหนน่าสงสัย | Anomaly detection | คะแนนที่สะอาดขึ้น |
+
+## ข้อจำกัดที่ต้องระบุในทุกข้อสรุป
+
+- **ไม่มีข้อมูลยอดขาย** — จำนวนรีวิวเป็นตัวแทนคร่าว ๆ ของดีมานด์เท่านั้น
+  ห้ามสรุปเป็นรายได้หรือส่วนแบ่งตลาด
+- **มีแต่คนที่เลือกจะรีวิว** (selection bias) — คนพอใจมาก ๆ กับไม่พอใจมาก ๆ
+  มีแนวโน้มรีวิวมากกว่าคนเฉย ๆ คะแนนเฉลี่ยจึงสูงกว่าความพึงพอใจจริงของคนซื้อทั้งหมด
+- **metadata ขาดหาย** — ราคาและแบรนด์ไม่ครบทุกสินค้า ต้องรายงานทุกครั้งว่ากรองออกไปกี่ %
+- **`dim_user` คำนวณจาก 3 หมวดนี้เท่านั้น** ไม่ใช่ประวัติ Amazon ทั้งหมดของคนนั้น

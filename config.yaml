@@ -1,0 +1,47 @@
+# ตั้งค่ากลาง ใช้ร่วมกันทั้ง elt/ และ preprocessing/
+
+# ---------------------------------------------------------------------------
+# ขอบเขตข้อมูล
+# ---------------------------------------------------------------------------
+# เลือก 3 หมวดที่รวมเป็นหมวดใหญ่เดียวกันได้: "ความงามและการดูแลตัวเอง"
+# (Beauty & Personal Care) — สินค้าที่คนซื้อมาใช้กับร่างกาย/รูปลักษณ์ตัวเอง
+# ทำให้เปรียบเทียบข้ามหมวดได้อย่างมีความหมาย และรวมกันแค่ ~3.4 GB
+domain: Beauty & Personal Care
+categories:
+  - All_Beauty                 # ~0.54 GB  เครื่องสำอาง/ผลิตภัณฑ์ความงาม
+  - Health_and_Personal_Care   # ~0.35 GB  ของใช้ดูแลสุขภาพส่วนบุคคล
+  - Amazon_Fashion             # ~2.47 GB  เสื้อผ้า/เครื่องแต่งกาย
+
+# ---------------------------------------------------------------------------
+# ELT stage
+# ---------------------------------------------------------------------------
+elt:
+  duckdb_path: data/warehouse/marketplace.duckdb
+  export_path: data/elt_export
+
+  # ขีดจำกัดทรัพยากร DuckDB — RAM น้อยให้ลดลง DuckDB จะ spill ลงดิสก์เอง
+  memory_limit: 6GB
+  threads: 4
+
+  # dataset ที่ push ขึ้น HF หลังจบ ELT (star schema ยังไม่ preprocess)
+  # เปลี่ยน CHANGE_ME เป็น username ของตัวเองก่อน push
+  repo_id: CHANGE_ME/amazon-beauty-star-schema
+  private: true
+
+# ---------------------------------------------------------------------------
+# Preprocessing stage
+# ---------------------------------------------------------------------------
+preprocessing:
+  export_path: data/preprocessed
+
+  # ตัดรีวิวที่สั้นเกินกว่าจะเอาไปทำ NLP ได้ (นับหลังทำความสะอาดข้อความ)
+  min_words: 3
+
+  # แบ่ง train/val/test ตามเวลา (ไม่ใช่สุ่ม) เพื่อไม่ให้โมเดลเห็นอนาคต
+  split_by_time: true
+  val_start: '2022-01-01'
+  test_start: '2023-01-01'
+
+  # dataset ที่ push ขึ้น HF หลัง preprocess (พร้อมเทรนโมเดล)
+  repo_id: CHANGE_ME/amazon-beauty-analytics-ready
+  private: true
