@@ -3,6 +3,14 @@ data/
 *.duckdb
 *.duckdb.wal
 
+# ความลับ — ห้าม commit เด็ดขาด (token เก็บใน keyring ผ่าน huggingface-cli login)
+.env
+.env.*
+*.token
+secrets.yaml
+# ยกเว้น template ที่ไม่มีค่าจริง — ต้อง commit เพื่อให้เพื่อนรู้ว่าต้องสร้างอะไร
+!.env.example
+
 # Python
 __pycache__/
 *.pyc

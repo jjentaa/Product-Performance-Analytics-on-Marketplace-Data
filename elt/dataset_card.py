@@ -99,6 +99,21 @@ pd.read_parquet("hf://datasets/{repo_id}/fact_review",
 **ยังไม่ได้ทำ:** ล้าง HTML ในข้อความ, feature engineering, แบ่ง train/test —
 อยู่ใน stage 2
 
+## ความครบถ้วนของ metadata (อ่านก่อนใช้ `price`)
+
+ตัวเลขถ่วงน้ำหนัก**ตามจำนวนรีวิว** คือสัดส่วนที่จะเหลือจริงเมื่อคุณ join กับ `dim_product`
+
+{coverage_table}
+
+⚠️ **ข้อมูลราคาที่ขาดหายไม่ได้สุ่ม (MNAR)** — สินค้าที่ไม่มีราคาใน metadata
+ได้คะแนนเฉลี่ยต่างจากสินค้าที่มีราคาอย่างเห็นได้ชัด:
+
+{price_bias_table}
+
+แปลว่าถ้าคุณกรอง `price_band = 'Unknown'` ทิ้งเพื่อวิเคราะห์เรื่องราคา
+**ผลลัพธ์จะเอนไปทางบวก** ไม่ใช่แค่ "ตัวอย่างเล็กลง" ควรรายงานทุกครั้งว่ากรองออกไปกี่ %
+และอย่าเอาข้อสรุปจาก subset นี้ไปอ้างกับสินค้าทั้งหมด
+
 ## ข้อควรระวัง
 
 - รีวิวเดียวอาจปรากฏในไฟล์หมวดมากกว่าหนึ่งไฟล์ การ dedupe ยุบเหลือแถวเดียว
@@ -220,10 +235,29 @@ X_train, y_train = train["text_full"], train["sentiment"]
 5. **รวม feature จาก dimension** — ราคา, แบรนด์, พฤติกรรมผู้รีวิว, สถิติของสินค้า
 6. **แบ่ง train/val/test ตามเวลา**
 
+## ⚠️ ปริมาณรีวิวช่วงท้ายไม่สมบูรณ์ — ห้ามตีความเป็นแนวโน้มดีมานด์
+
+จำนวนรีวิวต่อปีในชุดนี้ร่วงลงอย่างมากในปีท้าย ๆ:
+
+{yearly_table}
+
+การร่วงนี้แทบแน่นอนว่าเป็น**ข้อจำกัดของการเก็บข้อมูลต้นทาง** (ชุดข้อมูลถูกเก็บกลางปี 2023
+รีวิวใหม่ยังไม่ถูกรวบรวมครบ) **ไม่ใช่ยอดขายหรือความสนใจของลูกค้าที่ลดลงจริง**
+
+ผลที่ตามมา:
+
+- **ห้าม**สรุปว่า "ดีมานด์หมวดนี้หดตัว" จากกราฟจำนวนรีวิวรายปี
+- ถ้าจะวิเคราะห์แนวโน้มตามเวลา ให้ตัดข้อมูลปี 2022 เป็นต้นไปออก หรือใช้
+  **ค่าเฉลี่ยคะแนน** (ซึ่งไม่ขึ้นกับจำนวน) แทน**จำนวนรีวิว**
+- การแบ่ง split จึงเลื่อนเส้นมาหนึ่งปี (val = 2021, test = 2022 เป็นต้นไป)
+  ไม่งั้น test จะเหลือแค่ ~1.7% ของข้อมูล
+
 ## ข้อควรระวัง
 
 - คลาสไม่สมดุล — รีวิว 4–5 ดาวเยอะกว่ามาก ตอนเทรนควรใช้ `class_weight`
   หรือทำ resampling
+- **สัดส่วนคลาสเปลี่ยนตามเวลา** — สัดส่วนรีวิวเชิงลบใน val/test สูงกว่า train
+  อย่าตกใจถ้าคะแนนบน test ต่ำกว่าที่คาด นั่นคือ distribution shift จริงในข้อมูล
 - `product_avg_rating` และ `product_review_count` คำนวณจาก**ทั้งชุด**
   ถ้าซีเรียสเรื่อง leakage ให้คำนวณใหม่จากเฉพาะ train
 - ข้อความเป็นภาษาอังกฤษเป็นหลัก แต่ไม่ได้กรองภาษาออก
@@ -256,11 +290,30 @@ def render_elt_card(config: dict, stats: dict) -> str:
         f"{r['first_review']} → {r['last_review']} |"
         for r in stats["per_category"]
     ]
+    cov_rows = [
+        f"| `{r['category']}` | {r.get('price_coverage', 0):.1%} | {r.get('brand_coverage', 0):.1%} |"
+        for r in stats["per_category"]
+    ]
+    coverage_table = "\n".join([
+        "| หมวด | รู้ราคา | รู้แบรนด์ |", "|---|---|---|", *cov_rows,
+    ])
+
+    bias_rows = [
+        f"| {'มีราคาใน metadata' if r['has_price'] else 'ไม่มีราคา'} | "
+        f"{r['n_reviews']:,} | {r['avg_rating']} |"
+        for r in stats.get("price_missingness", [])
+    ]
+    price_bias_table = "\n".join([
+        "| กลุ่ม | จำนวนรีวิว | คะแนนเฉลี่ย |", "|---|---|---|", *bias_rows,
+    ])
+
     return ELT_CARD.format(
         size_category=size_category(counts["fact_review"]),
         domain=config["domain"],
         n_categories=len(config["categories"]),
         category_table="\n".join([header, divider, *rows]),
+        coverage_table=coverage_table,
+        price_bias_table=price_bias_table,
         repo_id=config["elt"]["repo_id"],
         next_repo=config["preprocessing"]["repo_id"],
         **counts,
@@ -269,7 +322,16 @@ def render_elt_card(config: dict, stats: dict) -> str:
 
 def render_prep_card(config: dict, stats: dict) -> str:
     counts = stats["split_counts"]
+
+    yearly = stats.get("yearly_volume", [])
+    peak = max((n for _, n in yearly), default=0)
+    yearly_table = "\n".join([
+        "| ปี | จำนวนรีวิว | เทียบปีที่สูงสุด |", "|---|---|---|",
+        *[f"| {y} | {n:,} | {n / peak:.0%} |" for y, n in yearly],
+    ])
+
     return PREP_CARD.format(
+        yearly_table=yearly_table,
         size_category=size_category(sum(counts.values())),
         domain=config["domain"],
         repo_id=config["preprocessing"]["repo_id"],

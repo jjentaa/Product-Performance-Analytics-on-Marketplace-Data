@@ -7,6 +7,15 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# โหลด .env ถ้ามี — huggingface_hub จะหยิบ HF_TOKEN จาก environment เอง
+# ไม่ต้องส่ง token เข้าโค้ดตรงไหนเลย (ถ้าใช้ `huggingface-cli login` ก็ไม่ต้องมี .env)
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(ROOT / ".env")
+except ImportError:
+    pass
+
 
 def load_config() -> dict:
     with open(ROOT / "config.yaml") as f:
@@ -38,6 +47,38 @@ def human_bytes(n: float) -> str:
 
 def folder_size(path: Path) -> int:
     return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+
+
+def resolve_dataset(stage: str, config: dict | None = None) -> Path:
+    """คืน path ของ dataset ที่พร้อมอ่าน
+
+    ดึงจาก Hugging Face ก่อน (รองรับ repo private เพราะใช้ token ที่เก็บไว้
+    และ cache ไม่โหลดซ้ำ) ถ้ายังไม่ได้ push หรือดึงไม่สำเร็จจะถอยไปใช้ไฟล์ในเครื่อง
+
+    stage: "elt" (star schema) หรือ "preprocessing" (พร้อมเทรนโมเดล)
+    """
+    config = config or load_config()
+    settings = config[stage]
+    local = ROOT / settings["export_path"]
+    repo_id = settings["repo_id"]
+
+    if "CHANGE_ME" not in repo_id:
+        try:
+            from huggingface_hub import snapshot_download
+
+            path = Path(snapshot_download(repo_id=repo_id, repo_type="dataset"))
+            print(f"แหล่งข้อมูล: Hugging Face — {repo_id}")
+            return path
+        except Exception as e:
+            print(f"ดึงจาก HF ไม่สำเร็จ ({type(e).__name__}: {e})\n→ ใช้ไฟล์ในเครื่องแทน")
+
+    if not local.exists():
+        raise FileNotFoundError(
+            f"ไม่พบ {local} — รัน `python -m elt.run_elt` ก่อน "
+            f"หรือตั้ง {stage}.repo_id ใน config.yaml ให้ชี้ dataset ที่ push แล้ว"
+        )
+    print(f"แหล่งข้อมูล: ไฟล์ในเครื่อง — {local.relative_to(ROOT)}")
+    return local
 
 
 def push_folder(folder: Path, repo_id: str, private: bool, message: str,

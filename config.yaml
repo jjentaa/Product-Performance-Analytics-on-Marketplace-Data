@@ -24,8 +24,7 @@ elt:
   threads: 4
 
   # dataset ที่ push ขึ้น HF หลังจบ ELT (star schema ยังไม่ preprocess)
-  # เปลี่ยน CHANGE_ME เป็น username ของตัวเองก่อน push
-  repo_id: CHANGE_ME/amazon-beauty-star-schema
+  repo_id: Madnesss/amazon-beauty-star-schema
   private: true
 
 # ---------------------------------------------------------------------------
@@ -38,10 +37,15 @@ preprocessing:
   min_words: 3
 
   # แบ่ง train/val/test ตามเวลา (ไม่ใช่สุ่ม) เพื่อไม่ให้โมเดลเห็นอนาคต
+  #
+  # ปริมาณรีวิวในชุดนี้ร่วงหนักช่วงท้าย (2021: ~468K, 2022: ~262K, 2023: ~58K)
+  # ซึ่งเป็นข้อจำกัดของการเก็บข้อมูลต้นทาง ไม่ใช่ดีมานด์หายจริง
+  # ถ้าตัดที่ปี 2022/2023 จะได้ test แค่ ~1.7% เลยเลื่อนเส้นมาปีละหนึ่ง
+  # เพื่อให้สัดส่วนใกล้เคียง 77/14/10 โดยยังรักษาลำดับเวลาไว้
   split_by_time: true
-  val_start: '2022-01-01'
-  test_start: '2023-01-01'
+  val_start: '2021-01-01'
+  test_start: '2022-01-01'
 
   # dataset ที่ push ขึ้น HF หลัง preprocess (พร้อมเทรนโมเดล)
-  repo_id: CHANGE_ME/amazon-beauty-analytics-ready
+  repo_id: Madnesss/amazon-beauty-analytics-ready
   private: true

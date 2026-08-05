@@ -62,6 +62,28 @@ def main() -> None:
         row["first_review"] = str(row["first_review"])
         row["last_review"] = str(row["last_review"])
 
+    # ความครบถ้วนของ metadata — ถ่วงน้ำหนักตามจำนวนรีวิว เพราะนั่นคือสัดส่วนที่
+    # จะหายไปจริงเมื่อผู้ใช้ปลายทางกรองแถวที่ไม่รู้ราคา/แบรนด์ออก
+    coverage = con.execute("""
+        SELECT f.category,
+               round(avg((p.price IS NOT NULL)::INT), 4) AS price_coverage,
+               round(avg((p.store IS NOT NULL)::INT), 4) AS brand_coverage
+        FROM marts.fact_review f JOIN marts.dim_product p USING (product_key)
+        GROUP BY 1
+    """).fetchall()
+    cov_map = {c: {"price_coverage": pc, "brand_coverage": bc} for c, pc, bc in coverage}
+    for row in per_category:
+        row.update(cov_map.get(row["category"], {}))
+
+    # คะแนนเฉลี่ยของสินค้าที่ "รู้ราคา" เทียบ "ไม่รู้ราคา" — ถ้าต่างกันมาก
+    # แปลว่าข้อมูลราคาที่ขาดหายไม่ได้สุ่ม (MNAR) ผู้ใช้ต้องรู้ก่อนกรองทิ้ง
+    price_bias = con.execute("""
+        SELECT (p.price IS NOT NULL) AS has_price,
+               count(*) AS n_reviews, round(avg(f.rating), 3) AS avg_rating
+        FROM marts.fact_review f JOIN marts.dim_product p USING (product_key)
+        GROUP BY 1 ORDER BY 1
+    """).fetchall()
+
     stats = {
         "stage": "elt",
         "source_dataset": "McAuley-Lab/Amazon-Reviews-2023",
@@ -72,6 +94,10 @@ def main() -> None:
             for table in PARTITIONED + FLAT
         },
         "per_category": per_category,
+        "price_missingness": [
+            {"has_price": bool(h), "n_reviews": n, "avg_rating": r}
+            for h, n, r in price_bias
+        ],
     }
     (export_dir / "stats.json").write_text(json.dumps(stats, indent=2, ensure_ascii=False))
     (export_dir / "README.md").write_text(render_elt_card(config, stats))

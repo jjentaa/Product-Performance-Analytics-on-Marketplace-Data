@@ -123,13 +123,30 @@ python -m elt.run_elt
 รันทีละขั้นก็ได้: `python -m elt.extract`, `python -m elt.load`,
 `python -m elt.transform`, `python -m elt.export`
 
-จากนั้นแก้ `elt.repo_id` ใน [config.yaml](config.yaml) เป็น `<hf-username>/<dataset-name>` แล้ว push:
+จากนั้นแก้ `elt.repo_id` ใน [config.yaml](config.yaml) เป็น `<hf-username>/<dataset-name>`
+
+**ตั้งค่า token** — เลือกทางใดทางหนึ่ง:
 
 ```bash
 huggingface-cli login
+```
+
+หรือถ้าชอบใช้ `.env` — คัดลอกไฟล์ตัวอย่างแล้วใส่ token ของตัวเองลงไป
+(`.env` ถูก gitignore ไว้แล้ว และโค้ดจะอ่าน `HF_TOKEN` ให้อัตโนมัติ):
+
+```bash
+cp .env.example .env
+```
+
+แล้ว push:
+
+```bash
 python -m elt.publish --dry-run
 python -m elt.publish
 ```
+
+> **อย่าวาง token จริงลงในแชท, commit, หรือ notebook** — ถ้าเผลอวางไปแล้ว
+> ให้ไป revoke ที่ https://huggingface.co/settings/tokens แล้วสร้างใหม่ทันที
 
 **Stage 2:** เปิด [preprocessing/preprocessing.ipynb](preprocessing/preprocessing.ipynb)
 ใน Jupyter/VS Code แล้ว Run All — cell สุดท้ายตั้ง `dry_run=True` ไว้
@@ -149,20 +166,38 @@ python -m elt.publish
 รวม ~10 GB — ถ้า RAM น้อยให้ลด `elt.memory_limit` ใน config
 DuckDB จะ spill ลงดิสก์เองแทนที่จะ crash
 
-## เพื่อนเอาไปใช้ต่อยังไง
+## Dataset ที่ push แล้ว
+
+| ชุด | ลิงก์ | เนื้อหา |
+|---|---|---|
+| #1 star schema | [Madnesss/amazon-beauty-star-schema](https://huggingface.co/datasets/Madnesss/amazon-beauty-star-schema) | 3.66M รีวิว, 999K สินค้า, 2.92M ผู้รีวิว (535 MB) |
+| #2 พร้อมเทรนโมเดล | [Madnesss/amazon-beauty-analytics-ready](https://huggingface.co/datasets/Madnesss/amazon-beauty-analytics-ready) | 3.37M รีวิวล้างแล้ว + feature + split (656 MB) |
+
+ทั้งสองชุดเป็น **private** — ถ้าจะให้เพื่อนเข้าถึงต้องเชิญเข้า repo
+หรือกดเปลี่ยนเป็น public ที่หน้า Settings ของ dataset บน HF
 
 ```python
 import pandas as pd
 
 # ชุดพร้อมเทรน (dataset #2)
-train = pd.read_parquet("hf://datasets/<username>/amazon-beauty-analytics-ready/reviews",
+train = pd.read_parquet("hf://datasets/Madnesss/amazon-beauty-analytics-ready/reviews",
                         filters=[("split", "=", "train")])
 X, y = train["text_full"], train["sentiment"]
 
 # ชุด star schema (dataset #1) — อยากทำ feature เอง
-fact = pd.read_parquet("hf://datasets/<username>/amazon-beauty-star-schema/fact_review",
+fact = pd.read_parquet("hf://datasets/Madnesss/amazon-beauty-star-schema/fact_review",
                        filters=[("category", "=", "All_Beauty")])
 ```
+
+### ตัวเลขจริงหลังรันจบ
+
+| | รีวิว | สินค้า | ผู้รีวิว | ช่วงเวลา |
+|---|---|---|---|---|
+| Amazon_Fashion | 2,475,694 | 825,869 | 2,035,490 | 2002–2023 |
+| All_Beauty | 694,252 | 112,565 | 631,986 | 2000–2023 |
+| Health_and_Personal_Care | 488,990 | 60,274 | 461,656 | 2001–2023 |
+
+การแบ่ง split ของ dataset #2: train 2,581,670 (77%) / val 467,957 (14%) / test 320,143 (10%)
 
 ## คำถามธุรกิจ
 
