@@ -56,17 +56,93 @@ Hugging Face          ┌──────────── Stage 1: ELT ─�
 
 ### Star schema
 
-Grain: **1 แถว = 1 รีวิว** — ดู diagram แบบแก้ไขได้ที่
-[docs/star_schema.drawio](docs/star_schema.drawio) (เปิดด้วย [app.diagrams.net](https://app.diagrams.net)
-หรือ extension draw.io ใน VS Code)
+Grain: **1 แถว = 1 รีวิว**
 
+![Star schema ของ Amazon Reviews 2023 — Beauty & Personal Care](docs/star_schema.svg)
+
+<details>
+<summary>ดูเป็น ER diagram (Mermaid) — คลิกเพื่อขยาย</summary>
+
+```mermaid
+erDiagram
+    dim_date    ||--o{ fact_review : date_key
+    dim_product ||--o{ fact_review : product_key
+    dim_user    ||--o{ fact_review : user_key
+    fact_review ||--|| review_text : review_id
+
+    fact_review {
+        varchar   review_id PK
+        int       date_key FK
+        bigint    product_key FK
+        bigint    user_key FK
+        varchar   category "degenerate dim (partition key)"
+        double    rating
+        bigint    helpful_vote
+        boolean   verified_purchase
+        boolean   has_images
+        boolean   is_positive
+        boolean   is_negative
+        timestamp review_ts
+    }
+    dim_product {
+        bigint  product_key PK
+        varchar parent_asin
+        varchar product_title
+        varchar main_category
+        varchar store "แบรนด์"
+        double  price
+        varchar price_band
+        double  listed_avg_rating
+        bigint  listed_rating_count
+        varchar category
+        boolean has_metadata
+    }
+    dim_user {
+        bigint  user_key PK
+        varchar user_id
+        bigint  lifetime_reviews
+        bigint  categories_reviewed
+        double  avg_rating_given
+        bigint  total_helpful_votes
+        double  verified_share
+        date    first_review_date
+        date    last_review_date
+        varchar reviewer_segment
+    }
+    dim_date {
+        int     date_key PK
+        date    full_date
+        int     year
+        int     quarter
+        int     month
+        varchar month_name
+        int     week_of_year
+        varchar day_name
+        boolean is_weekend
+    }
+    review_text {
+        varchar review_id PK "FK ไป fact_review"
+        varchar category
+        varchar parent_asin
+        double  rating
+        varchar review_title "ดิบ ยังไม่ล้าง"
+        varchar review_text "ดิบ ยังไม่ล้าง"
+    }
 ```
-              dim_date
-                 │
- dim_product ── fact_review ── dim_user
-                 │
-            review_text (ข้อความดิบ, join ด้วย review_id)
-```
+
+</details>
+
+ไฟล์ diagram: [docs/star_schema.svg](docs/star_schema.svg) (รูป) และ
+[docs/star_schema.drawio](docs/star_schema.drawio) (แก้ไขได้ด้วย
+[app.diagrams.net](https://app.diagrams.net) หรือ extension draw.io ใน VS Code)
+
+**สองจุดที่ออกแบบไว้เป็นพิเศษ**
+
+- **`review_text` แยกออกจาก fact** — ข้อความรีวิวกินพื้นที่มากกว่าคอลัมน์อื่นรวมกัน
+  แยกออกแล้ว `fact_review` เหลือ 120 MB โหลดเข้า pandas บนโน้ตบุ๊กได้สบาย
+  (join กลับด้วย `review_id` เมื่อต้องใช้ข้อความ)
+- **`category` ซ้ำอยู่ใน fact** ทั้งที่มีใน `dim_product` แล้ว — ใช้เป็น partition key
+  ตอน export Parquet ปลายทางจึงอ่านทีละหมวดได้โดยไม่ต้องสแกนทั้งชุด
 
 | ตาราง | Grain | คอลัมน์เด่น |
 |---|---|---|
@@ -105,6 +181,20 @@ Notebook ที่โหลด star schema จาก HF (dataset #1) แล้�
 > ใช้ DuckDB เป็นตัวประมวลผลหลักแทน pandas เพราะข้อมูลหลายล้านแถวที่มีข้อความยาว
 > ถ้าโหลดเข้า pandas ทั้งก้อนจะกิน RAM หนัก — DuckDB ทำงานบน Parquet ได้โดยตรงและ
 > spill ลงดิสก์เองเมื่อหน่วยความจำไม่พอ ส่วน pandas ใช้ดูผลลัพธ์ระหว่างทาง
+
+## Notebook ตัวอย่างสำหรับเอาไปใช้ต่อ
+
+3 ตัวนี้เป็น**ตัวอย่าง** ที่โหลด dataset จาก Hugging Face มาใช้เลย (ถ้ายังไม่ได้ push
+จะถอยไปอ่านไฟล์ในเครื่องอัตโนมัติ) เปิดแล้ว Run All ได้ทันที
+
+| Notebook | ใช้ dataset | ทำอะไร |
+|---|---|---|
+| [preprocessing/exploration.ipynb](preprocessing/exploration.ipynb) | #1 star schema | **EDA** — สำรวจข้อมูลก่อน preprocess ทุกหัวข้อจบด้วย "ข้อสรุป → การตัดสินใจ" ที่ไปปรากฏจริงใน pipeline |
+| [analytics/analytics.ipynb](analytics/analytics.ipynb) | #1 star schema | ตอบคำถาม **A1–A5** ด้วย SQL + กราฟ ไม่ต้องสร้างโมเดล |
+| [model/model.ipynb](model/model.ipynb) | #2 พร้อมเทรน | โมเดลตัวอย่าง **B1–B3**: classification, clustering, regression |
+
+`model/` sample ข้อมูลไว้ให้รันจบใน 1–2 นาทีบน CPU (ปรับ `TRAIN_SAMPLE = None`
+ถ้าอยากใช้ครบ 2.58 ล้านแถว) ทุกโมเดลเทียบกับ **baseline** เสมอ
 
 ## วิธีรัน
 
@@ -254,7 +344,12 @@ elt/
   publish.py                     push dataset #1 ขึ้น HF
   run_elt.py                     รัน stage 1 ครบทุกขั้น
 preprocessing/
+  exploration.ipynb              EDA: สำรวจข้อมูล -> เหตุผลของทุกการตัดสินใจ preprocess
   preprocessing.ipynb            stage 2 ทั้งหมด: โหลด → ล้าง → feature → split → push
+analytics/
+  analytics.ipynb                ตัวอย่างตอบคำถาม A1-A5 (ไม่ต้องใช้โมเดล)
+model/
+  model.ipynb                    ตัวอย่างโมเดล B1-B3 (classification/clustering/regression)
 docs/
   business_questions.md          คำถามธุรกิจ 10 ข้อ + SQL + วิธีตั้งโจทย์โมเดล
   star_schema.drawio             ER diagram แบบแก้ไขได้
