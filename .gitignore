@@ -22,3 +22,8 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# analytics/ — commit เฉพาะ analytics.ipynb และ Answer_Analytic.ipynb ที่เหลือไม่เข้า git
+analytics/*
+!analytics/analytics.ipynb
+!analytics/Answer_Analytic.ipynb
