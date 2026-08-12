@@ -171,7 +171,8 @@ Notebook ที่โหลด star schema จาก HF (dataset #1) แล้�
    (`product_avg_rating`, `rating_vs_product_avg`, `days_since_product_first_review`)
    → ปลายทางไม่ต้อง join เอง
 6. **แบ่ง train/val/test ตามเวลา** ไม่ใช่สุ่ม เพื่อกัน data leakage
-   (train < 2022, val = 2022, test ≥ 2023)
+   (train < 2021, val = 2021, test ≥ 2022 — เลื่อนมาจากเดิม 2022/2023 เพราะปริมาณรีวิว
+   ปี 2022 เป็นต้นไปเก็บไม่ครบ ทำให้ test เดิมเหลือแค่ ~1.7% ของข้อมูล)
 7. **ตรวจคุณภาพ** — ยืนยันว่าช่วงเวลาของแต่ละ split ไม่ทับกัน, ไม่มี null ในคอลัมน์บังคับ,
    `review_id` ไม่ซ้ำ แล้วรายงานความไม่สมดุลของคลาส
 
@@ -184,17 +185,54 @@ Notebook ที่โหลด star schema จาก HF (dataset #1) แล้�
 
 ## Notebook ตัวอย่างสำหรับเอาไปใช้ต่อ
 
-3 ตัวนี้เป็น**ตัวอย่าง** ที่โหลด dataset จาก Hugging Face มาใช้เลย (ถ้ายังไม่ได้ push
-จะถอยไปอ่านไฟล์ในเครื่องอัตโนมัติ) เปิดแล้ว Run All ได้ทันที
+โหลด dataset จาก Hugging Face มาใช้เลย (ถ้ายังไม่ได้ push จะถอยไปอ่านไฟล์ในเครื่องอัตโนมัติ)
+เปิดแล้ว Run All ได้ทันที
 
 | Notebook | ใช้ dataset | ทำอะไร |
 |---|---|---|
 | [preprocessing/exploration.ipynb](preprocessing/exploration.ipynb) | #1 star schema | **EDA** — สำรวจข้อมูลก่อน preprocess ทุกหัวข้อจบด้วย "ข้อสรุป → การตัดสินใจ" ที่ไปปรากฏจริงใน pipeline |
 | [analytics/analytics.ipynb](analytics/analytics.ipynb) | #1 star schema | ตอบคำถาม **A1–A5** ด้วย SQL + กราฟ ไม่ต้องสร้างโมเดล |
-| [model/model.ipynb](model/model.ipynb) | #2 พร้อมเทรน | โมเดลตัวอย่าง **B1–B3**: classification, clustering, regression |
+| [analytics/Answer_Analytic.ipynb](analytics/Answer_Analytic.ipynb) | #1 star schema | เวอร์ชัน **Q1–Q5** — ภาพรวมชี้สัญญาณก่อนแตกเป็นคำถาม พร้อมข้อเสนอแนะต่อข้อ |
+| [model/model.ipynb](model/model.ipynb) | #2 พร้อมเทรน | โมเดล **B1–B5** ครบ: regression, classification, clustering, topic modeling, anomaly detection — **เทรนแล้วบันทึกโมเดลจริงไว้ที่ `data/model_artifacts/*.joblib`** |
 
-`model/` sample ข้อมูลไว้ให้รันจบใน 1–2 นาทีบน CPU (ปรับ `TRAIN_SAMPLE = None`
-ถ้าอยากใช้ครบ 2.58 ล้านแถว) ทุกโมเดลเทียบกับ **baseline** เสมอ
+`model/model.ipynb` sample ข้อมูลไว้ให้รันจบในไม่กี่นาทีบน CPU (ปรับ `TRAIN_SAMPLE = None`
+ถ้าอยากใช้ครบ 2.58 ล้านแถว) ทุกโมเดลเทียบกับ **baseline** เสมอ — ผลจริงคือ B1 (regression)
+**ไม่ชนะ baseline เลย** ซึ่งรายงานไว้ตรง ๆ ไม่ปรับแต่งให้ดูดีกว่าความเป็นจริง
+
+## Dashboard — Streamlit
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Interactive dashboard ที่รวมคำถามธุรกิจทั้งหมด (Q1–Q5 และ B1–B5) ไว้ในที่เดียว:
+
+- **ข้อมูลสด (แท็บ Analytics)** — query ตรงบน **dataset #1 (star schema ที่ผ่าน ELT
+  pipeline แล้ว)** ผ่าน DuckDB ทุกครั้งที่เปลี่ยน filter
+- **ผลโมเดล (แท็บ Model Insights)** — โหลดจากโมเดลที่ **เทรนและบันทึกไว้ล่วงหน้าแล้ว**
+  ที่ `data/model_artifacts/*.joblib` (ตัวโมเดล) และ `data/model_output/*` (ตาราง)
+  จาก `model/model.ipynb` — dashboard **ไม่ retrain สดในแอป**
+
+**ต้องรันก่อนเปิด dashboard ครั้งแรก** (ครั้งเดียว ใช้เวลาไม่กี่นาที):
+
+```bash
+jupyter execute model/model.ipynb   # หรือเปิดใน Jupyter/VS Code แล้ว Run All
+```
+
+ถ้ายังไม่รัน แท็บ Model Insights จะขึ้น "ยังไม่มีผลลัพธ์ — รัน model/model.ipynb ก่อน"
+แทนที่จะพัง
+
+**สิ่งที่มีใน dashboard**
+
+| ส่วน | รายละเอียด |
+|---|---|
+| Filter | หมวดสินค้า (multiselect), ช่วงปี (slider), เฉพาะ verified purchase (checkbox) |
+| Measures | จำนวนรีวิว, คะแนนเฉลี่ย, สัดส่วนรีวิวเชิงลบ, สัดส่วนซื้อจริง |
+| กราฟแนวโน้มเวลา | ปริมาณรีวิว+คะแนนรายปี, สัดส่วนหัวข้อร้องเรียนรายปี (B4) |
+| กราฟเปรียบเทียบ | คะแนนข้ามหมวด, แบรนด์, ช่วงราคา, กลุ่มผู้รีวิว, โมเดล vs baseline (B1/B2) |
+| Interactive control เพิ่มเติม | เลือก cluster เพื่อดูสินค้าจริง (B3), แท็กรีวิวต้องสงสัยด้วยตัวเอง (B5) |
+| Insights & ข้อเสนอแนะ | คำนวณสดตาม filter ปัจจุบัน — อย่างน้อย 7 ข้อ พร้อมข้อเสนอแนะเชิงธุรกิจ |
+| ข้อจำกัดของข้อมูล | สรุปทุกอคติ/ข้อจำกัดที่ต้องรู้ก่อนเชื่อตัวเลขในหน้านี้ |
 
 ## วิธีรัน
 
@@ -347,11 +385,18 @@ preprocessing/
   exploration.ipynb              EDA: สำรวจข้อมูล -> เหตุผลของทุกการตัดสินใจ preprocess
   preprocessing.ipynb            stage 2 ทั้งหมด: โหลด → ล้าง → feature → split → push
 analytics/
-  analytics.ipynb                ตัวอย่างตอบคำถาม A1-A5 (ไม่ต้องใช้โมเดล)
+  analytics.ipynb                ตอบคำถาม A1-A5 (ไม่ต้องใช้โมเดล)
+  Answer_Analytic.ipynb          เวอร์ชัน Q1-Q5 พร้อมข้อเสนอแนะต่อข้อ
 model/
-  model.ipynb                    ตัวอย่างโมเดล B1-B3 (classification/clustering/regression)
+  model.ipynb                    โมเดล B1-B5 ครบ — เทรนแล้วบันทึกโมเดลจริงที่ data/model_artifacts/
+dashboard/
+  app.py                         Streamlit dashboard — รวมทุกคำถามธุรกิจไว้ที่เดียว
+  charts.py                      ตัวสร้างกราฟ Plotly ทั้งหมด
+  data_loader.py                 query สดผ่าน DuckDB (dataset #1) + โหลดผลโมเดลที่เทรนไว้แล้ว
 docs/
   business_questions.md          คำถามธุรกิจ 10 ข้อ + SQL + วิธีตั้งโจทย์โมเดล
-  star_schema.drawio             ER diagram แบบแก้ไขได้
-data/                            ไฟล์ดิบ + warehouse + export (gitignore ไว้)
+  star_schema.drawio             ER diagram แบบแก้ไขได้ (draw.io)
+  star_schema.svg                ER diagram แบบรูปภาพ (ใช้ใน README)
+data/                            ไฟล์ดิบ + warehouse + export + model_output + model_artifacts
+                                 (ทั้งหมด gitignore ไว้ — รัน pipeline/notebook ใหม่เพื่อสร้างคืน)
 ```

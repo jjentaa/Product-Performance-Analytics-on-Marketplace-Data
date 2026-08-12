@@ -1,5 +1,10 @@
-# ข้อมูลทั้งหมด ไม่เข้า git (ไฟล์ใหญ่ ใช้ HF เก็บแทน)
-data/
+# ข้อมูลดิบ/warehouse/export ไม่เข้า git (ไฟล์ใหญ่ ใช้ HF เก็บแทน)
+# ยกเว้นผลลัพธ์โมเดลที่เทรนไว้แล้ว (model_output, model_artifacts) — ต้อง commit
+# เพราะ dashboard/ (เช่นตอน deploy บน Streamlit Cloud) โคลนจาก git สด ๆ ไม่ได้รัน
+# model/model.ipynb เอง จึงต้องมีไฟล์ผลลัพธ์ (~6 MB) ติดมากับ repo ด้วย
+data/*
+!data/model_output/
+!data/model_artifacts/
 *.duckdb
 *.duckdb.wal
 
