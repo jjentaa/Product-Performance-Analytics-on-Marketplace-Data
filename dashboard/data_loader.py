@@ -41,7 +41,7 @@ def get_connection() -> duckdb.DuckDBPyConnection:
 @st.cache_data(show_spinner=False)
 def get_filter_bounds() -> dict:
     """ค่าที่ใช้ตั้งขอบเขต widget ของ sidebar (หมวด, ปี)"""
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     cats = con.execute(
         "SELECT DISTINCT category FROM fact_review ORDER BY 1"
     ).df()["category"].tolist()
@@ -64,7 +64,7 @@ def _where_clause(categories: list[str], year_range: tuple[int, int], verified_o
 
 @st.cache_data(show_spinner=False)
 def get_kpis(categories: tuple, year_range: tuple, verified_only: bool) -> dict:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     row = con.execute(f"""
         SELECT
@@ -81,7 +81,7 @@ def get_kpis(categories: tuple, year_range: tuple, verified_only: bool) -> dict:
 
 @st.cache_data(show_spinner=False)
 def get_yearly_trend(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT year(f.review_ts) AS year, count(*) AS n_reviews,
@@ -94,7 +94,7 @@ def get_yearly_trend(categories: tuple, year_range: tuple, verified_only: bool) 
 
 @st.cache_data(show_spinner=False)
 def get_category_rating_distribution(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT f.category, f.rating, count(*) AS n
@@ -105,7 +105,7 @@ def get_category_rating_distribution(categories: tuple, year_range: tuple, verif
 
 @st.cache_data(show_spinner=False)
 def get_top_brands(categories: tuple, year_range: tuple, verified_only: bool, min_reviews: int = 300) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT p.store AS brand, p.category, count(*) AS n_reviews,
@@ -120,7 +120,7 @@ def get_top_brands(categories: tuple, year_range: tuple, verified_only: bool, mi
 
 @st.cache_data(show_spinner=False)
 def get_price_band_rating(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT p.price_band, count(*) AS n_reviews,
@@ -133,7 +133,7 @@ def get_price_band_rating(categories: tuple, year_range: tuple, verified_only: b
 
 @st.cache_data(show_spinner=False)
 def get_price_missingness_bias(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT CASE WHEN p.price IS NULL THEN 'ไม่รู้ราคา' ELSE 'รู้ราคา' END AS grp,
@@ -148,7 +148,7 @@ def get_price_missingness_bias(categories: tuple, year_range: tuple, verified_on
 
 @st.cache_data(show_spinner=False)
 def get_reviewer_segment_stats(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT u.reviewer_segment, count(*) AS n_reviews,
@@ -163,7 +163,7 @@ def get_reviewer_segment_stats(categories: tuple, year_range: tuple, verified_on
 
 @st.cache_data(show_spinner=False)
 def get_images_helpfulness(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT f.category, f.has_images,
@@ -201,7 +201,7 @@ def get_complaint_keyword_share(categories: tuple, year_range: tuple, verified_o
     วิธีนี้นับ *การมีคำ* ไม่เข้าใจบริบท (เป็นภาพคร่าว ๆ) ถ้าต้องการหัวข้อที่แม่นกว่า
     ให้ดูผล B4 (LDA topic modeling) ที่แท็บ Model Insights
     """
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     rows = []
     for topic, patterns in _KEYWORD_PATTERNS.items():
@@ -222,7 +222,7 @@ def get_complaint_keyword_share(categories: tuple, year_range: tuple, verified_o
 @st.cache_data(show_spinner=False)
 def get_timebomb_products(categories: tuple, year_range: tuple, verified_only: bool,
                           min_reviews: int = 100, max_rating: float = 3.0) -> pd.DataFrame:
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         WITH per_product AS (
@@ -281,7 +281,7 @@ def get_products_in_cluster(cluster_name: str, categories: tuple, limit: int = 1
     clusters = load_model_output("b3_product_clusters.parquet")
     if clusters is None:
         return pd.DataFrame()
-    con = get_connection()
+    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
     con.register("_clusters", clusters)
     cats = ", ".join(f"'{c}'" for c in categories) or "''"
     return con.execute(f"""
