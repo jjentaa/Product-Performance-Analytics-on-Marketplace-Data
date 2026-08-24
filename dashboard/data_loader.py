@@ -8,6 +8,7 @@
 ไม่ retrain สดในแอป
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -22,6 +23,17 @@ from elt.common import load_config, resolve_dataset  # noqa: E402
 
 MODEL_OUTPUT_DIR = ROOT / "data" / "model_output"
 MODEL_ARTIFACT_DIR = ROOT / "data" / "model_artifacts"
+
+# ถ้า deploy บน Streamlit Cloud และตั้งค่า secret ชื่อ HF_TOKEN ไว้ ให้ดึงมาใช้เป็น
+# HF_TOKEN ปกติ — huggingface_hub จะเห็นเองอัตโนมัติ (ไม่ทำอะไรถ้าไม่มี secret นี้
+# ตั้งไว้ หรือรันในเครื่องที่มี .env อยู่แล้ว) การมี token ช่วยให้ rate limit ของ
+# Hugging Face สูงขึ้นมาก — สำคัญมากบน cloud ที่ IP มักถูกใช้ร่วมกันหลายแอป
+if "HF_TOKEN" not in os.environ:
+    try:
+        if "HF_TOKEN" in st.secrets:
+            os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
+    except Exception:
+        pass  # ไม่มีไฟล์ secrets.toml เลย (เช่นรันในเครื่อง) — ไม่ใช่ปัญหา
 
 
 @st.cache_resource(show_spinner="กำลังเชื่อมต่อ dataset (star schema จาก ELT pipeline)...")
