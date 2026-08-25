@@ -25,10 +25,10 @@ INCOMPLETE_YEAR_COLOR = "rgba(214, 48, 49, 0.10)"
 
 def _base_layout(fig: go.Figure, title: str, height: int = 380) -> go.Figure:
     fig.update_layout(
-        title=title,
+        title=dict(text=title, y=0.98, yanchor="top"),
         height=height,
-        margin=dict(l=10, r=10, t=48, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0),
+        margin=dict(l=10, r=10, t=48, b=70),
+        legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="left", x=0),
         template="plotly_white",
     )
     return fig
