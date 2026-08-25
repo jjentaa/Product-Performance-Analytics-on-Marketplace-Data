@@ -1,11 +1,12 @@
-"""ตัวโหลดข้อมูลของ dashboard — cache ไว้ทั้งหมดเพื่อให้ filter แล้วตอบสนองเร็ว
+"""Dashboard data loaders — all cached so filtering stays responsive.
 
-แหล่งข้อมูลหลัก: dataset #1 (star schema ที่ผ่าน ELT pipeline) — ทุก query สดที่
-ขึ้นกับ filter (หมวด/ช่วงปี/verified) วิ่งผ่าน DuckDB ตรงบน Parquet ของ dataset นี้
+Primary data source: dataset #1 (star schema produced by the ELT pipeline) — every
+live query that depends on a filter (category / year range / verified) runs through
+DuckDB directly on this dataset's Parquet files.
 
-ผลลัพธ์จากโมเดล (B1-B5) เป็นของที่ **เทรนไว้ล่วงหน้าแล้ว** ที่ data/model_output/
-(ตาราง) และ data/model_artifacts/ (ตัวโมเดล .joblib) — dashboard แค่โหลดมาแสดง
-ไม่ retrain สดในแอป
+Model results (B1-B5) come from models that were **trained and saved ahead of time**
+under data/model_output/ (result tables) and data/model_artifacts/ (.joblib models) —
+the dashboard only loads and displays them, it never retrains live.
 """
 
 import os
@@ -24,21 +25,22 @@ from elt.common import load_config, resolve_dataset  # noqa: E402
 MODEL_OUTPUT_DIR = ROOT / "data" / "model_output"
 MODEL_ARTIFACT_DIR = ROOT / "data" / "model_artifacts"
 
-# ถ้า deploy บน Streamlit Cloud และตั้งค่า secret ชื่อ HF_TOKEN ไว้ ให้ดึงมาใช้เป็น
-# HF_TOKEN ปกติ — huggingface_hub จะเห็นเองอัตโนมัติ (ไม่ทำอะไรถ้าไม่มี secret นี้
-# ตั้งไว้ หรือรันในเครื่องที่มี .env อยู่แล้ว) การมี token ช่วยให้ rate limit ของ
-# Hugging Face สูงขึ้นมาก — สำคัญมากบน cloud ที่ IP มักถูกใช้ร่วมกันหลายแอป
+# If deployed on Streamlit Cloud with a secret named HF_TOKEN configured, bridge it
+# into a normal HF_TOKEN env var — huggingface_hub picks it up automatically. This is
+# a safe no-op if the secret isn't set, or when running locally with a .env already
+# in place. Having a token raises Hugging Face's rate limit substantially, which
+# matters a lot on cloud platforms where the outbound IP is often shared across apps.
 if "HF_TOKEN" not in os.environ:
     try:
         if "HF_TOKEN" in st.secrets:
             os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
     except Exception:
-        pass  # ไม่มีไฟล์ secrets.toml เลย (เช่นรันในเครื่อง) — ไม่ใช่ปัญหา
+        pass  # No secrets.toml at all (e.g. running locally) — not a problem
 
 
-@st.cache_resource(show_spinner="กำลังเชื่อมต่อ dataset (star schema จาก ELT pipeline)...")
+@st.cache_resource(show_spinner="Connecting to dataset (star schema from the ELT pipeline)...")
 def get_connection() -> duckdb.DuckDBPyConnection:
-    """เปิด DuckDB แล้วสร้าง view คร่อม dataset #1 (ผ่าน ELT pipeline แล้ว)"""
+    """Open DuckDB and create views over dataset #1 (already through the ELT pipeline)"""
     config = load_config()
     src = resolve_dataset("elt", config)
     con = duckdb.connect()
@@ -52,8 +54,8 @@ def get_connection() -> duckdb.DuckDBPyConnection:
 
 @st.cache_data(show_spinner=False)
 def get_filter_bounds() -> dict:
-    """ค่าที่ใช้ตั้งขอบเขต widget ของ sidebar (หมวด, ปี)"""
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    """Bounds used to set up the sidebar widgets (category, year)"""
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     cats = con.execute(
         "SELECT DISTINCT category FROM fact_review ORDER BY 1"
     ).df()["category"].tolist()
@@ -76,7 +78,7 @@ def _where_clause(categories: list[str], year_range: tuple[int, int], verified_o
 
 @st.cache_data(show_spinner=False)
 def get_kpis(categories: tuple, year_range: tuple, verified_only: bool) -> dict:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     row = con.execute(f"""
         SELECT
@@ -93,7 +95,7 @@ def get_kpis(categories: tuple, year_range: tuple, verified_only: bool) -> dict:
 
 @st.cache_data(show_spinner=False)
 def get_yearly_trend(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT year(f.review_ts) AS year, count(*) AS n_reviews,
@@ -106,7 +108,7 @@ def get_yearly_trend(categories: tuple, year_range: tuple, verified_only: bool) 
 
 @st.cache_data(show_spinner=False)
 def get_category_rating_distribution(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT f.category, f.rating, count(*) AS n
@@ -117,7 +119,7 @@ def get_category_rating_distribution(categories: tuple, year_range: tuple, verif
 
 @st.cache_data(show_spinner=False)
 def get_top_brands(categories: tuple, year_range: tuple, verified_only: bool, min_reviews: int = 300) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT p.store AS brand, p.category, count(*) AS n_reviews,
@@ -132,7 +134,7 @@ def get_top_brands(categories: tuple, year_range: tuple, verified_only: bool, mi
 
 @st.cache_data(show_spinner=False)
 def get_price_band_rating(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT p.price_band, count(*) AS n_reviews,
@@ -145,10 +147,10 @@ def get_price_band_rating(categories: tuple, year_range: tuple, verified_only: b
 
 @st.cache_data(show_spinner=False)
 def get_price_missingness_bias(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
-        SELECT CASE WHEN p.price IS NULL THEN 'ไม่รู้ราคา' ELSE 'รู้ราคา' END AS grp,
+        SELECT CASE WHEN p.price IS NULL THEN 'Unknown price' ELSE 'Known price' END AS grp,
                count(*) AS n_reviews,
                round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS pct,
                round(avg(f.rating), 3) AS avg_rating
@@ -160,7 +162,7 @@ def get_price_missingness_bias(categories: tuple, year_range: tuple, verified_on
 
 @st.cache_data(show_spinner=False)
 def get_reviewer_segment_stats(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT u.reviewer_segment, count(*) AS n_reviews,
@@ -175,7 +177,7 @@ def get_reviewer_segment_stats(categories: tuple, year_range: tuple, verified_on
 
 @st.cache_data(show_spinner=False)
 def get_images_helpfulness(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         SELECT f.category, f.has_images,
@@ -189,12 +191,12 @@ def get_images_helpfulness(categories: tuple, year_range: tuple, verified_only: 
 
 
 COMPLAINT_KEYWORDS = {
-    "size_fit": "ไซซ์/ความพอดี",
-    "quality": "คุณภาพ",
-    "fake": "ของปลอม",
-    "smell": "กลิ่น",
-    "refund_return": "คืนสินค้า/เงิน",
-    "shipping": "จัดส่ง",
+    "size_fit": "Size / fit",
+    "quality": "Quality",
+    "fake": "Counterfeit",
+    "smell": "Smell",
+    "refund_return": "Refund / return",
+    "shipping": "Shipping",
 }
 _KEYWORD_PATTERNS = {
     "size_fit": ["size", "too small", "too big", "too large", "fit", "tight", "loose"],
@@ -206,14 +208,15 @@ _KEYWORD_PATTERNS = {
 }
 
 
-@st.cache_data(show_spinner="กำลังนับคำบ่นในรีวิวเชิงลบ...")
+@st.cache_data(show_spinner="Counting complaint keywords in negative reviews...")
 def get_complaint_keyword_share(categories: tuple, year_range: tuple, verified_only: bool) -> pd.DataFrame:
-    """Q5 (เวอร์ชัน analytics ล้วน) — นับสัดส่วนคำบ่นที่พบในรีวิวเชิงลบด้วย LIKE
+    """Q5 (pure-analytics version) — share of complaint keywords found in negative reviews via LIKE
 
-    วิธีนี้นับ *การมีคำ* ไม่เข้าใจบริบท (เป็นภาพคร่าว ๆ) ถ้าต้องการหัวข้อที่แม่นกว่า
-    ให้ดูผล B4 (LDA topic modeling) ที่แท็บ Model Insights
+    This only counts *keyword presence*, with no context understanding (a rough picture).
+    For a more accurate topic breakdown, see the B4 result (LDA topic modeling) in the
+    Model Insights tab.
     """
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     rows = []
     for topic, patterns in _KEYWORD_PATTERNS.items():
@@ -226,7 +229,7 @@ def get_complaint_keyword_share(categories: tuple, year_range: tuple, verified_o
             GROUP BY 1
         """).df()
         df["keyword"] = topic
-        df["keyword_th"] = COMPLAINT_KEYWORDS[topic]
+        df["keyword_label"] = COMPLAINT_KEYWORDS[topic]
         rows.append(df)
     return pd.concat(rows, ignore_index=True)
 
@@ -234,7 +237,7 @@ def get_complaint_keyword_share(categories: tuple, year_range: tuple, verified_o
 @st.cache_data(show_spinner=False)
 def get_timebomb_products(categories: tuple, year_range: tuple, verified_only: bool,
                           min_reviews: int = 100, max_rating: float = 3.0) -> pd.DataFrame:
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     where = _where_clause(list(categories), year_range, verified_only)
     return con.execute(f"""
         WITH per_product AS (
@@ -252,11 +255,11 @@ def get_timebomb_products(categories: tuple, year_range: tuple, verified_only: b
     """).df()
 
 
-# ────────────────────────── ผลลัพธ์โมเดลที่เทรนไว้แล้ว (B1-B5) ──────────────────────────
+# ────────────────────────── Pre-trained model results (B1-B5) ──────────────────────────
 
 @st.cache_data(show_spinner=False)
 def load_model_output(filename: str) -> pd.DataFrame | None:
-    """โหลดตารางผลลัพธ์ที่ model/model.ipynb บันทึกไว้ล่วงหน้า คืน None ถ้ายังไม่มี"""
+    """Load a result table saved ahead of time by model/model.ipynb; None if not present yet"""
     path = MODEL_OUTPUT_DIR / filename
     if not path.exists():
         return None
@@ -266,11 +269,11 @@ def load_model_output(filename: str) -> pd.DataFrame | None:
         return pd.read_csv(path)
     if path.suffix == ".json":
         return pd.read_json(path)
-    raise ValueError(f"ไม่รู้จักนามสกุลไฟล์: {path}")
+    raise ValueError(f"Unknown file extension: {path}")
 
 
 def model_artifacts_available() -> dict:
-    """เช็คว่าโมเดลไหนถูกเทรน+บันทึกไว้แล้วบ้าง — ใช้ตัดสินใจว่าจะโชว์ tab ไหน"""
+    """Check which models have been trained + saved already — used to decide which tab content to show"""
     if not MODEL_ARTIFACT_DIR.exists():
         return {}
     return {p.stem: p for p in MODEL_ARTIFACT_DIR.glob("*.joblib")}
@@ -278,7 +281,7 @@ def model_artifacts_available() -> dict:
 
 @st.cache_resource(show_spinner=False)
 def load_b2_metadata() -> dict | None:
-    """โหลดแค่ metadata (macro-F1) จากโมเดล B2 ที่เทรนไว้แล้ว ไม่เอา pipeline มาใช้ predict สด"""
+    """Load just the metadata (macro-F1) from the pre-trained B2 model, without loading the predict pipeline"""
     import joblib
     path = MODEL_ARTIFACT_DIR / "b2_sentiment_classifier.joblib"
     if not path.exists():
@@ -289,11 +292,11 @@ def load_b2_metadata() -> dict | None:
 
 @st.cache_data(show_spinner=False)
 def get_products_in_cluster(cluster_name: str, categories: tuple, limit: int = 10) -> pd.DataFrame:
-    """ตัวอย่างสินค้าจริงในแต่ละ cluster (B3) — join ผลลัพธ์โมเดลกับ dim_product สด"""
+    """Sample real products from each cluster (B3) — joins the model output with live dim_product"""
     clusters = load_model_output("b3_product_clusters.parquet")
     if clusters is None:
         return pd.DataFrame()
-    con = get_connection().cursor()  # cursor ต่อคำสั่ง กัน race condition ตอนมีหลาย rerun ซ้อนกัน
+    con = get_connection().cursor()  # per-call cursor avoids race conditions across overlapping reruns
     con.register("_clusters", clusters)
     cats = ", ".join(f"'{c}'" for c in categories) or "''"
     return con.execute(f"""

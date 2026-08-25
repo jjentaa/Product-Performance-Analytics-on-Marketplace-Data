@@ -1,14 +1,14 @@
 """Interactive Dashboard — Amazon Reviews 2023: Beauty & Personal Care
 
-รันด้วย:
+Run with:
     streamlit run dashboard/app.py
 
-แหล่งข้อมูล:
-- แท็บ Analytics (Q1-Q5): query สดผ่าน DuckDB บน **dataset #1 (star schema ที่ผ่าน
-  ELT pipeline แล้ว)** — ตอบได้ด้วยการนับ/ค่าเฉลี่ย ไม่ต้องใช้โมเดล
-- แท็บ Model Insights (B1-B5): โหลดผลลัพธ์จากโมเดลที่ **เทรนและบันทึกไว้ล่วงหน้าแล้ว**
-  ที่ data/model_output/ (ตาราง) และ data/model_artifacts/ (ตัวโมเดล .joblib)
-  จาก model/model.ipynb — dashboard ไม่ retrain สดในแอป
+Data sources:
+- Analytics tab (Q1-Q5): live queries via DuckDB on **dataset #1 (star schema produced
+  by the ELT pipeline)** — answered purely with counts/averages, no model needed
+- Model Insights tab (B1-B5): loads results from models that were **trained and saved
+  ahead of time** under data/model_output/ (tables) and data/model_artifacts/
+  (.joblib models) from model/model.ipynb — the dashboard never retrains live
 """
 
 import sys
@@ -27,9 +27,9 @@ st.set_page_config(page_title="Amazon Beauty Reviews — Dashboard", page_icon="
 # ─────────────────────────────────────────── Header ───────────────────────────────────────────
 st.title("📊 Product Performance Dashboard")
 st.caption(
-    "Amazon Reviews 2023 · หมวด Beauty & Personal Care (All_Beauty, Amazon_Fashion, "
-    "Health_and_Personal_Care) · ข้อมูลจาก dataset #1 (ผ่าน ELT pipeline) + "
-    "โมเดลที่เทรนไว้ล่วงหน้า (B1–B5)"
+    "Amazon Reviews 2023 · Beauty & Personal Care categories (All_Beauty, Amazon_Fashion, "
+    "Health_and_Personal_Care) · data from dataset #1 (through the ELT pipeline) + "
+    "pre-trained models (B1–B5)"
 )
 
 # ─────────────────────────────────────────── Sidebar: Filters ───────────────────────────────────
@@ -37,99 +37,101 @@ bounds = dl.get_filter_bounds()
 
 st.sidebar.header("🔎 Filter")
 sel_categories = st.sidebar.multiselect(
-    "หมวดสินค้า", options=bounds["categories"], default=bounds["categories"],
+    "Category", options=bounds["categories"], default=bounds["categories"],
 )
 sel_year_range = st.sidebar.slider(
-    "ช่วงปีของรีวิว", min_value=bounds["year_min"], max_value=bounds["year_max"],
+    "Review year range", min_value=bounds["year_min"], max_value=bounds["year_max"],
     value=(bounds["year_min"], bounds["year_max"]),
 )
-sel_verified_only = st.sidebar.checkbox("เฉพาะรีวิวที่ซื้อจริง (verified purchase)", value=False)
+sel_verified_only = st.sidebar.checkbox("Verified purchases only", value=False)
 
 if sel_year_range[1] >= 2022:
     st.sidebar.warning(
-        "⚠️ ข้อมูลปี 2022 เป็นต้นไปเก็บไม่ครบ (ชุดข้อมูลต้นทางเก็บถึง ก.ย. 2023) "
-        "อย่าตีความปริมาณรีวิวที่ลดลงว่าดีมานด์หด — ดูคะแนนเฉลี่ยแทน"
+        "⚠️ Data from 2022 onward is incomplete (the source dataset was collected through "
+        "Sep 2023) — don't read a drop in review volume as shrinking demand, look at the "
+        "average rating instead"
     )
 
 if not sel_categories:
-    st.warning("เลือกอย่างน้อย 1 หมวดสินค้าที่แถบด้านซ้ายเพื่อดูข้อมูล")
+    st.warning("Select at least 1 category in the sidebar to see data")
     st.stop()
 
 CATS = tuple(sorted(sel_categories))
 YRS = tuple(sel_year_range)
 VER = bool(sel_verified_only)
 
-with st.sidebar.expander("🧠 โมเดลที่ใช้ในแท็บ Model Insights"):
+with st.sidebar.expander("🧠 Models used in the Model Insights tab"):
     artifacts = dl.model_artifacts_available()
     if artifacts:
         for name in sorted(artifacts):
             st.caption(f"✅ {name}.joblib")
     else:
-        st.caption("ยังไม่พบไฟล์โมเดล — รัน `model/model.ipynb` ก่อน")
+        st.caption("No model files found yet — run `model/model.ipynb` first")
 
 # ─────────────────────────────────────────── KPI Row ────────────────────────────────────────────
 kpi = dl.get_kpis(CATS, YRS, VER)
 
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("จำนวนรีวิว (Total Reviews)", f"{kpi['n_reviews']:,.0f}")
-k2.metric("คะแนนเฉลี่ย (Avg Rating)", f"{kpi['avg_rating']:.2f} ⭐")
-k3.metric("สัดส่วนรีวิวเชิงลบ (Negative Share)", f"{kpi['negative_share']:.1%}")
-k4.metric("สัดส่วนซื้อจริง (Verified Share)", f"{kpi['verified_share']:.1%}")
+k1.metric("Total Reviews", f"{kpi['n_reviews']:,.0f}")
+k2.metric("Avg Rating", f"{kpi['avg_rating']:.2f} ⭐")
+k3.metric("Negative Share", f"{kpi['negative_share']:.1%}")
+k4.metric("Verified Share", f"{kpi['verified_share']:.1%}")
 
 st.divider()
 
-tab_analytics, tab_model, tab_insight, tab_caveat = st.tabs(
-    ["📈 Analytics (Q1–Q5)", "🤖 Model Insights (B1–B5)", "💡 Insights & ข้อเสนอแนะ", "⚠️ ข้อจำกัดของข้อมูล"]
+tab_analytics, tab_model, tab_insight, tab_pipeline, tab_caveat = st.tabs(
+    ["📈 Analytics (Q1–Q5)", "🤖 Model Insights (B1–B5)", "💡 Insights & Recommendations",
+     "🔧 Pipeline", "⚠️ Data Limitations"]
 )
 
 # ═══════════════════════════════════════ TAB: ANALYTICS ═══════════════════════════════════════
 with tab_analytics:
     st.markdown(
-        "ตอบด้วยการนับ/ค่าเฉลี่ยล้วน ๆ บน **dataset #1 (star schema)** — ไม่ต้องสร้างโมเดล "
-        "ทุกกราฟ query สดตาม filter ด้านซ้าย"
+        "Answered purely with counts/averages on **dataset #1 (star schema)** — no model "
+        "needed. Every chart is a live query against the filters in the sidebar."
     )
 
-    st.subheader("แนวโน้มตามเวลา — ปริมาณรีวิวและความพึงพอใจเป็นอย่างไรในแต่ละปี?")
+    st.subheader("Trend over time — how has review volume and satisfaction moved year by year?")
     trend = dl.get_yearly_trend(CATS, YRS, VER)
     st.plotly_chart(charts.yearly_trend(trend), width="stretch")
 
-    st.subheader("Q1 — คนรีวิวครั้งเดียว vs ขาประจำ ให้คะแนนต่างกันไหม?")
+    st.subheader("Q1 — Do one-off reviewers rate differently from regulars?")
     st.caption(
-        "คนเกือบทั้งหมดเป็น One-off ถ้ากลุ่มนี้ให้คะแนนสุดขั้วกว่า แปลว่าคะแนนรวมถูกครอบงำ"
-        "ด้วยความเห็นแบบรัก-หรือ-เกลียด"
+        "Almost everyone is a one-off reviewer. If this group rates more extremely, the "
+        "overall rating is being dominated by love-it-or-hate-it opinions."
     )
     seg = dl.get_reviewer_segment_stats(CATS, YRS, VER)
     st.plotly_chart(charts.reviewer_segment_comparison(seg), width="stretch")
 
     col_a, col_b = st.columns([3, 2])
     with col_a:
-        st.subheader("Q2 — สินค้าไหน \"ระเบิดเวลา\"? (รีวิวเยอะ แต่คะแนนต่ำ)")
-        st.caption("ปัญหาที่กระทบคนจำนวนมากสำคัญกว่าสินค้าคะแนนต่ำที่มีคนซื้อไม่กี่คน")
+        st.subheader("Q2 — Which products are 'time bombs'? (lots of reviews, low rating)")
+        st.caption("A problem hitting many people matters more than a low-rated product only a few people bought.")
         timebomb = dl.get_timebomb_products(CATS, YRS, VER)
         if timebomb.empty:
-            st.info("ไม่พบสินค้าที่เข้าเกณฑ์ในช่วง filter นี้")
+            st.info("No products meet this criteria within the current filter")
         else:
             st.plotly_chart(charts.timebomb_bar(timebomb), width="stretch")
     with col_b:
-        st.subheader("Q6 — แบรนด์ไหนแข็งแกร่งที่สุด?")
-        st.caption("Benchmark สำหรับเทียบผลงานของแบรนด์เรากับคู่แข่ง")
+        st.subheader("Q6 — Which brands are strongest?")
+        st.caption("A benchmark for comparing our brands against competitors")
         brands = dl.get_top_brands(CATS, YRS, VER)
         if brands.empty:
-            st.info("ไม่มีแบรนด์ที่มีรีวิว ≥ 300 ในช่วง filter นี้")
+            st.info("No brand has ≥ 300 reviews within the current filter")
         else:
             st.plotly_chart(charts.top_brands(brands), width="stretch")
 
-    st.subheader("Q3 — ราคาหาย ~79% บิดผลการวิเคราะห์แค่ไหน?")
+    st.subheader("Q3 — Price is missing on ~79% of reviews — how much does that bias the analysis?")
     bias = dl.get_price_missingness_bias(CATS, YRS, VER)
     price = dl.get_price_band_rating(CATS, YRS, VER)
     if not bias.empty:
-        unknown_pct = bias.loc[bias.grp == "ไม่รู้ราคา", "pct"]
-        gap = (bias.set_index("grp").avg_rating.get("รู้ราคา", 0)
-              - bias.set_index("grp").avg_rating.get("ไม่รู้ราคา", 0))
+        unknown_pct = bias.loc[bias.grp == "Unknown price", "pct"]
+        gap = (bias.set_index("grp").avg_rating.get("Known price", 0)
+              - bias.set_index("grp").avg_rating.get("Unknown price", 0))
         st.warning(
-            f"⚠️ ราคาไม่ทราบใน **{unknown_pct.iloc[0] if len(unknown_pct) else 0:.0f}%** ของรีวิว "
-            f"และคะแนนของกลุ่มที่รู้ราคาสูงกว่ากลุ่มที่ไม่รู้ราคาอยู่ **{gap:+.2f} ดาว** "
-            "→ การกรอง 'Unknown' ทิ้งทำให้ผลเอนไปทางบวก ไม่ใช่แค่ตัวอย่างเล็กลง"
+            f"⚠️ Price is unknown for **{unknown_pct.iloc[0] if len(unknown_pct) else 0:.0f}%** of reviews, "
+            f"and the known-price group rates **{gap:+.2f} stars** higher than the unknown-price group "
+            "→ dropping 'Unknown' rows skews the analysis positive, it's not just a smaller sample."
         )
     col_c, col_d = st.columns(2)
     with col_c:
@@ -138,39 +140,40 @@ with tab_analytics:
         if not price.empty:
             st.plotly_chart(charts.price_band_rating(price), width="stretch")
         else:
-            st.info("ไม่มีสินค้าที่รู้ราคาในช่วง filter นี้")
+            st.info("No products with a known price within the current filter")
 
-    st.subheader("Q4 — รีวิวมีรูปมีประโยชน์กว่าจริงไหม คุ้มที่จะดันไหม?")
-    st.caption("รีวิวมีรูปมีน้อยมาก (~6%) — ถ้าพิสูจน์ว่าช่วยคนอื่นตัดสินใจจริง ก็คุ้มออกแบบ UX ให้แนบรูปง่ายขึ้น")
+    st.subheader("Q4 — Are reviews with photos actually more helpful? Worth promoting?")
+    st.caption("Reviews with photos are rare (~6%) — if they demonstrably help buyers decide, it's worth improving the UX to make attaching photos easier.")
     imgs = dl.get_images_helpfulness(CATS, YRS, VER)
     st.plotly_chart(charts.images_helpfulness(imgs), width="stretch")
 
-    st.subheader("Q5 — ลูกค้าบ่นเรื่องอะไรในรีวิวเชิงลบ? (เวอร์ชัน keyword)")
+    st.subheader("Q5 — What do customers complain about in negative reviews? (keyword version)")
     st.caption(
-        "นับด้วย SQL `LIKE` — เร็วและอธิบายง่าย แต่ไม่เข้าใจบริบท (เช่น \"great quality\" ก็ติดคำว่า quality) "
-        "เทียบผลกับเวอร์ชัน topic modeling (B4) ได้ที่แท็บ Model Insights"
+        "Counted with SQL `LIKE` — fast and easy to explain, but has no context understanding "
+        "(e.g. \"great quality\" still matches the word quality). Compare against the topic "
+        "modeling version (B4) in the Model Insights tab."
     )
     kw = dl.get_complaint_keyword_share(CATS, YRS, VER)
     if kw.empty:
-        st.info("ไม่มีรีวิวเชิงลบในช่วง filter นี้")
+        st.info("No negative reviews within the current filter")
     else:
         st.plotly_chart(charts.complaint_keywords(kw), width="stretch")
 
 # ═══════════════════════════════════════ TAB: MODEL INSIGHTS ══════════════════════════════════
 with tab_model:
     st.markdown(
-        "ผลลัพธ์จากโมเดลที่ **เทรนและบันทึกไว้ล่วงหน้าแล้ว** ใน `model/model.ipynb` "
-        "(ตัวโมเดลอยู่ที่ `data/model_artifacts/*.joblib`, ตารางผลลัพธ์อยู่ที่ `data/model_output/`) "
-        "แท็บนี้ไม่ retrain สด — กราฟจึงไม่เปลี่ยนตาม filter ปี/verified ด้านซ้าย "
-        "(ยกเว้นตัวกรองหมวดในบางส่วนที่ join กับข้อมูลสดได้)"
+        "Results from models that were **trained and saved ahead of time** in `model/model.ipynb` "
+        "(models live under `data/model_artifacts/*.joblib`, result tables under `data/model_output/`). "
+        "This tab does not retrain live — charts don't change with the year/verified filters in the "
+        "sidebar (except for the category filter, in places that join back to live data)."
     )
 
     # ── B1: Regression ─────────────────────────────────────────────────────────────────────
-    st.subheader("B1 — สินค้าใหม่จะได้คะแนนเท่าไหร่? (Regression)")
-    st.caption("สินค้าใหม่ยังไม่มีรีวิวเลย จะ `GROUP BY` หาค่าเฉลี่ยไม่ได้ ต้องเรียนรู้จากสินค้าที่มีอยู่แล้ว")
+    st.subheader("B1 — What rating will a new product get? (Regression)")
+    st.caption("A new product has no reviews yet, so `GROUP BY` averages don't work — it has to learn from existing products.")
     b1 = dl.load_model_output("b1_regression_metrics.json")
     if b1 is None:
-        st.info("ยังไม่มีผลลัพธ์ B1 — รัน `model/model.ipynb` ก่อน")
+        st.info("No B1 results yet — run `model/model.ipynb` first")
     else:
         best_row = b1.loc[b1.MAE.idxmin()]
         baseline_row = b1[b1.model.str.contains("Baseline")].iloc[0]
@@ -178,13 +181,13 @@ with tab_model:
         with colb1:
             if best_row["model"] == baseline_row["model"]:
                 st.error(
-                    "**ไม่มีโมเดลไหนชนะ baseline** ในข้อมูลจริงชุดนี้ — ราคา, แบรนด์, หมวด "
-                    "อธิบายคะแนนสินค้าไม่ได้เลย ต้องรายงานตามตรง ถ้าจะทำต่อควรเพิ่ม feature "
-                    "จากข้อความรายละเอียดสินค้า ไม่ใช่ปรับจูนโมเดลต่อ"
+                    "**No model beats the baseline** on this real data — price, brand, and category "
+                    "don't explain product ratings at all. Reporting this honestly; further work should "
+                    "add features from product description text, not more model tuning."
                 )
             else:
                 gain = baseline_row.MAE - best_row.MAE
-                st.success(f"โมเดลดีที่สุด **{best_row['model']}** ดีกว่า baseline {gain:.4f} ดาว")
+                st.success(f"Best model **{best_row['model']}** beats baseline by {gain:.4f} stars")
             st.dataframe(b1.style.format({"MAE": "{:.4f}", "RMSE": "{:.4f}", "R2": "{:.4f}"}),
                         hide_index=True, width="stretch")
         with colb2:
@@ -193,29 +196,30 @@ with tab_model:
     st.divider()
 
     # ── B2: Classification ─────────────────────────────────────────────────────────────────
-    st.subheader("B2 — ข้อความในรีวิวตรงกับดาวที่ให้ไหม? (Classification)")
+    st.subheader("B2 — Does the review text match the star rating given? (Classification)")
     st.caption(
-        "ประโยชน์จริงไม่ใช่ค่า F1 แต่คือการหารีวิวที่ **ดาวไม่ตรงข้อความ** "
-        "(กดดาวผิด/ประชด/ให้ดาวตามของแถม) ซึ่งทำให้คะแนนสินค้าเพี้ยน"
+        "The real value isn't the F1 score — it's finding reviews where the **rating doesn't match "
+        "the text** (mis-clicked stars, sarcasm, rating for a free gift instead), which distorts a "
+        "product's score."
     )
     b2_meta = dl.load_b2_metadata()
     b2_mismatch = dl.load_model_output("b2_mismatch_reviews.csv")
     if b2_meta is None:
-        st.info("ยังไม่มีผลลัพธ์ B2 — รัน `model/model.ipynb` ก่อน")
+        st.info("No B2 results yet — run `model/model.ipynb` first")
     else:
         colb3, colb4 = st.columns([2, 3])
         with colb3:
-            st.metric("macro-F1 (โมเดลจริง)", f"{b2_meta['macro_f1_test']:.3f}",
+            st.metric("macro-F1 (trained model)", f"{b2_meta['macro_f1_test']:.3f}",
                       delta=f"{b2_meta['macro_f1_test'] - b2_meta['baseline_macro_f1']:+.3f} vs baseline")
             n_mismatch = 0 if b2_mismatch is None else len(b2_mismatch)
-            st.metric("รีวิวที่ดาวไม่ตรงข้อความ (test set)", f"{n_mismatch:,}")
+            st.metric("Rating/text mismatches (test set)", f"{n_mismatch:,}")
         with colb4:
             st.plotly_chart(
                 charts.b2_f1_comparison(b2_meta["baseline_macro_f1"], b2_meta["macro_f1_test"]),
                 width="stretch",
             )
         if b2_mismatch is not None and not b2_mismatch.empty:
-            with st.expander(f"ดูตัวอย่างรีวิวที่ดาวไม่ตรงข้อความ ({len(b2_mismatch)} แถว)"):
+            with st.expander(f"See example mismatched reviews ({len(b2_mismatch)} rows)"):
                 st.dataframe(
                     b2_mismatch[["category", "rating", "mismatch_type", "p_negative", "p_positive", "text_full"]],
                     hide_index=True, width="stretch",
@@ -224,11 +228,11 @@ with tab_model:
     st.divider()
 
     # ── B3: Clustering ──────────────────────────────────────────────────────────────────────
-    st.subheader("B3 — สินค้าแบ่งได้กี่กลุ่มตามลักษณะ performance? (Clustering)")
-    st.caption("ไม่รู้ล่วงหน้าว่ามีกี่กลุ่ม — ให้ K-Means หาโครงสร้างเองจากข้อมูล แทนการตั้งกฎเอง")
+    st.subheader("B3 — How many performance-based groups do products fall into? (Clustering)")
+    st.caption("The number of groups isn't known in advance — let K-Means discover the structure from the data instead of hand-writing rules.")
     b3_profile = dl.load_model_output("b3_cluster_profile.csv")
     if b3_profile is None:
-        st.info("ยังไม่มีผลลัพธ์ B3 — รัน `model/model.ipynb` ก่อน")
+        st.info("No B3 results yet — run `model/model.ipynb` first")
     else:
         colb5, colb6 = st.columns([3, 2])
         with colb5:
@@ -236,23 +240,23 @@ with tab_model:
         with colb6:
             st.plotly_chart(charts.b3_cluster_size(b3_profile), width="stretch")
 
-        sel_cluster = st.selectbox("🔍 เลือกกลุ่มเพื่อดูตัวอย่างสินค้าจริง", b3_profile.cluster_name.tolist())
+        sel_cluster = st.selectbox("🔍 Pick a cluster to see real sample products", b3_profile.cluster_name.tolist())
         sample = dl.get_products_in_cluster(sel_cluster, CATS)
         if sample.empty:
-            st.caption("ไม่มีสินค้าตัวอย่างในกลุ่มนี้ภายใต้หมวดที่เลือกไว้")
+            st.caption("No sample products in this cluster for the selected categories")
         else:
             st.dataframe(sample, hide_index=True, width="stretch")
 
     st.divider()
 
     # ── B4: Topic modeling ──────────────────────────────────────────────────────────────────
-    st.subheader("B4 — ลูกค้าบ่นเรื่องอะไรบ้าง? (Topic Modeling)")
-    st.caption("รู้ว่ารีวิว 1-2 ดาวคือ 'ไม่พอใจ' แต่ไม่รู้ว่าเรื่องอะไร มีเป็นแสนรีวิว อ่านเองไม่ไหว")
+    st.subheader("B4 — What are customers complaining about? (Topic Modeling)")
+    st.caption("Knowing a 1-2 star review means 'unhappy' doesn't say *what about* — with hundreds of thousands of reviews, reading them by hand isn't feasible.")
     topic_words = dl.load_model_output("b4_topic_words.csv")
     cat_share = dl.load_model_output("b4_category_topic_share.csv")
     year_share = dl.load_model_output("b4_yearly_topic_share.csv")
     if topic_words is None or cat_share is None:
-        st.info("ยังไม่มีผลลัพธ์ B4 — รัน `model/model.ipynb` ก่อน")
+        st.info("No B4 results yet — run `model/model.ipynb` first")
     else:
         top3 = (topic_words[topic_words["rank"] <= 3]
                .groupby("topic_id")["word"].apply(lambda s: ", ".join(s)))
@@ -267,25 +271,26 @@ with tab_model:
                 st.plotly_chart(charts.b4_topic_share_year(year_share, topic_labels),
                                 width="stretch")
 
-        with st.expander("คำเด่นของแต่ละ topic (top 8 คำ)"):
+        with st.expander("Top words per topic (top 8)"):
             top8 = (topic_words[topic_words["rank"] <= 8]
                    .groupby("topic_id")["word"].apply(lambda s: ", ".join(s)).reset_index())
-            top8.columns = ["Topic", "คำเด่น"]
+            top8.columns = ["Topic", "Top words"]
             top8["Topic"] = top8["Topic"].map(lambda t: topic_labels.get(str(t), f"T{t}"))
             st.dataframe(top8, hide_index=True, width="stretch")
 
     st.divider()
 
     # ── B5: Anomaly detection ───────────────────────────────────────────────────────────────
-    st.subheader("B5 — รีวิวไหนน่าสงสัยว่าเป็นรีวิวปลอม/รีวิวจ้าง? (Anomaly Detection)")
+    st.subheader("B5 — Which reviews look like they might be fake/paid? (Anomaly Detection)")
     st.caption(
-        "ไม่มี label ว่ารีวิวไหนปลอมจริง — ผลลัพธ์คือ **'น่าสงสัย' ไม่ใช่ 'ปลอมแน่นอน'** "
-        "ใช้คัดกรองเบื้องต้นแล้วให้คนตรวจซ้ำเท่านั้น"
+        "There's no ground-truth label for which reviews are actually fake — results are "
+        "**'suspicious', not 'confirmed fake'**. Use this for initial screening only, with a "
+        "human always reviewing before acting on it."
     )
     b5_candidates = dl.load_model_output("b5_anomaly_candidates.csv")
     b5_impact = dl.load_model_output("b5_impact_summary.csv")
     if b5_candidates is None or b5_impact is None:
-        st.info("ยังไม่มีผลลัพธ์ B5 — รัน `model/model.ipynb` ก่อน")
+        st.info("No B5 results yet — run `model/model.ipynb` first")
     else:
         n_flagged = len(b5_candidates)
         n_products = len(b5_impact)
@@ -294,14 +299,14 @@ with tab_model:
         avg_abs = b5_impact.delta.abs().mean()
 
         colb9, colb10, colb11, colb12 = st.columns(4)
-        colb9.metric("รีวิวที่ถูกตั้งข้อสงสัย", f"{n_flagged:,}")
-        colb10.metric("สินค้าที่ได้รับผลกระทบ", f"{n_products:,}")
-        colb11.metric("คะแนนถูก 'ดันขึ้น' (rating เกินจริง)", f"{n_inflated} ชิ้น")
-        colb12.metric("ผลกระทบเฉลี่ยต่อคะแนน", f"±{avg_abs:.3f} ดาว")
+        colb9.metric("Reviews flagged", f"{n_flagged:,}")
+        colb10.metric("Products affected", f"{n_products:,}")
+        colb11.metric("Ratings likely 'inflated'", f"{n_inflated} products")
+        colb12.metric("Avg impact on rating", f"±{avg_abs:.3f} stars")
 
         st.plotly_chart(charts.b5_impact_bar(b5_impact), width="stretch")
 
-        with st.expander(f"รีวิวที่น่าสงสัยที่สุด — ลองแท็กด้วยตัวเอง (ไม่บันทึกถาวร แค่สาธิตขั้นตอนตรวจด้วยคน)"):
+        with st.expander("Most suspicious reviews — try tagging them yourself (not saved, just a demo of the human-review step)"):
             show_cols = ["review_id", "category", "rating", "anomaly_score", "verified_purchase",
                         "reviewer_segment", "near_dup_similarity", "text_full", "is_fake_manual_label"]
             edited = st.data_editor(
@@ -310,15 +315,15 @@ with tab_model:
                 disabled=[c for c in show_cols if c != "is_fake_manual_label"],
                 column_config={
                     "is_fake_manual_label": st.column_config.SelectboxColumn(
-                        "ผลตรวจด้วยคน", options=["", "fake", "genuine", "ไม่แน่ใจ"]
+                        "Human review result", options=["", "fake", "genuine", "not sure"]
                     )
                 },
             )
 
 # ═══════════════════════════════════════ TAB: INSIGHTS ════════════════════════════════════════
 with tab_insight:
-    st.markdown("### 💡 Insights & ข้อเสนอแนะทางธุรกิจ")
-    st.caption("คำนวณสดจากข้อมูลภายใต้ filter ปัจจุบัน — เปลี่ยน filter ด้านซ้ายแล้วตัวเลขจะอัปเดตตาม")
+    st.markdown("### 💡 Insights & Business Recommendations")
+    st.caption("Computed live from data under the current filter — change the sidebar filters and these numbers update.")
 
     seg2 = dl.get_reviewer_segment_stats(CATS, YRS, VER)
     bias2 = dl.get_price_missingness_bias(CATS, YRS, VER)
@@ -337,25 +342,27 @@ with tab_insight:
 
     if oneoff_share is not None:
         insights.append((
-            "1. คะแนนรวมถูกครอบงำโดยผู้รีวิวครั้งเดียว",
-            f"{oneoff_share:.0%} ของรีวิวมาจากคนที่รีวิวครั้งเดียวจบ (One-off) และกลุ่มนี้มีสัดส่วนให้คะแนน "
-            f"1 หรือ 5 ดาวสุดขั้ว {oneoff_pol:.0%} เทียบกับขาประจำ (Power reviewer) ที่ {power_pol:.0%}"
+            "1. Overall ratings are dominated by one-off reviewers",
+            f"{oneoff_share:.0%} of reviews come from people who reviewed only once (one-off), and this "
+            f"group gives extreme 1-or-5-star ratings {oneoff_pol:.0%} of the time, vs. {power_pol:.0%} "
+            "for power reviewers"
             if power_pol is not None else "",
-            "เวลารายงานคะแนนเฉลี่ยสินค้า ควรกำกับฐานผู้รีวิวเสมอ และใช้กลุ่ม One-off + not verified "
-            "เป็นจุดเริ่มต้นของการตรวจรีวิวปลอม (ดูแท็บ Model Insights B5)",
+            "When reporting a product's average rating, always state the reviewer base, and use the "
+            "one-off + not-verified group as a starting point for fake-review screening "
+            "(see Model Insights tab, B5)",
         ))
 
     if not bias2.empty:
         unk = bias2.set_index("grp")
-        if "รู้ราคา" in unk.index and "ไม่รู้ราคา" in unk.index:
-            gap2 = unk.loc["รู้ราคา", "avg_rating"] - unk.loc["ไม่รู้ราคา", "avg_rating"]
-            unk_pct = unk.loc["ไม่รู้ราคา", "pct"]
+        if "Known price" in unk.index and "Unknown price" in unk.index:
+            gap2 = unk.loc["Known price", "avg_rating"] - unk.loc["Unknown price", "avg_rating"]
+            unk_pct = unk.loc["Unknown price", "pct"]
             insights.append((
-                "2. ข้อมูลราคาขาดหายแบบไม่สุ่ม (MNAR) — บิดผลวิเคราะห์ราคา",
-                f"ราคาไม่ทราบใน {unk_pct:.0f}% ของรีวิว และสินค้าที่รู้ราคามีคะแนนเฉลี่ยสูงกว่ากลุ่มที่ไม่รู้ราคา "
-                f"อยู่ {gap2:+.2f} ดาว",
-                "ทุกครั้งที่วิเคราะห์เรื่องราคา (เช่น price_band vs rating) ต้องรายงานว่ากรองรีวิวออกไปกี่ % "
-                "และห้ามเอาข้อสรุปไปอ้างกับสินค้าทั้งหมด",
+                "2. Price is missing not-at-random (MNAR) — it biases price-based analysis",
+                f"Price is unknown for {unk_pct:.0f}% of reviews, and products with a known price rate "
+                f"{gap2:+.2f} stars higher on average than those without",
+                "Any time price is analyzed (e.g. price_band vs rating), report what % of reviews were "
+                "dropped, and never generalize the conclusion to all products.",
             ))
 
     if not imgs2.empty:
@@ -363,11 +370,11 @@ with tab_insight:
         if True in piv.columns and False in piv.columns:
             uplift = (piv[True] - piv[False]).mean()
             insights.append((
-                "3. รีวิวที่แนบรูปได้รับความเชื่อถือมากกว่าอย่างชัดเจน",
-                f"สัดส่วนรีวิวที่ได้อย่างน้อย 1 helpful vote สูงกว่าเฉลี่ย {uplift:+.1%} เมื่อมีรูปแนบ "
-                "แต่รีวิวที่มีรูปมีอยู่แค่ ~6% ของรีวิวทั้งหมด",
-                "ออกแบบ UX ให้แนบรูปง่ายขึ้น (เช่น ปุ่มแนบรูปที่เห็นชัด) หรือให้ incentive "
-                "(คูปอง/แต้มสะสม) กับรีวิวที่มีรูป เพื่อเพิ่มสัดส่วนรีวิวคุณภาพสูง",
+                "3. Reviews with photos are clearly trusted more",
+                f"Share of reviews with ≥1 helpful vote is {uplift:+.1%} higher on average when a photo "
+                "is attached, but photo reviews are only ~6% of all reviews",
+                "Make it easier to attach photos in the UX (e.g. a more visible attach button), or "
+                "incentivize photo reviews (coupons/points) to raise the share of high-quality reviews",
             ))
 
     b1i = dl.load_model_output("b1_regression_metrics.json")
@@ -376,10 +383,11 @@ with tab_insight:
         baseline = b1i[b1i.model.str.contains("Baseline")].iloc[0]
         if best["model"] == baseline["model"]:
             insights.append((
-                "4. ทำนายคะแนนสินค้าใหม่จากราคา/แบรนด์/หมวดเพียงอย่างเดียวไม่ได้ผล",
-                "โมเดล Regression (Ridge, GradientBoosting) ไม่มีตัวไหนชนะ baseline (ทายค่าเฉลี่ยของหมวด) เลย",
-                "อย่าใช้ราคา/แบรนด์คัดกรองสินค้าใหม่ก่อนรับเข้าขาย ควรลงทุนเก็บ feature จากคำอธิบายสินค้า "
-                "หรือรอสะสมรีวิวจริงจำนวนหนึ่งก่อนประเมิน",
+                "4. Price/brand/category alone can't predict a new product's rating",
+                "None of the regression models (Ridge, GradientBoosting) beat the baseline (predicting "
+                "the category average) at all",
+                "Don't use price/brand alone to screen new products before listing — invest in features "
+                "from product description text, or wait for a real review count before evaluating",
             ))
 
     b5i_impact = dl.load_model_output("b5_impact_summary.csv")
@@ -387,11 +395,12 @@ with tab_insight:
     if b5i_impact is not None and b5i_cand is not None:
         n_inflated2 = int((b5i_impact.delta < 0).sum())
         insights.append((
-            "5. พบสินค้าที่คะแนนอาจถูก 'ดันขึ้น' ด้วยรีวิวน่าสงสัย",
-            f"จาก 100 รีวิวที่โมเดล Anomaly Detection ชี้ว่าน่าสงสัยที่สุด มี {len(b5i_impact)} สินค้าได้รับผลกระทบ "
-            f"และ {n_inflated2} ชิ้นในนั้น คะแนนจะ **ลดลง** ถ้าตัดรีวิวน่าสงสัยออก (แปลว่าอาจถูกดันคะแนนขึ้น)",
-            "ส่งรายชื่อสินค้ากลุ่มนี้ให้ทีม Trust & Safety ตรวจสอบก่อน — ผลลัพธ์เป็นแค่ 'น่าสงสัย' "
-            "ห้ามลงโทษผู้ใช้จากคะแนนนี้โดยตรง ต้องมีคนตรวจซ้ำเสมอ",
+            "5. Some products may have their rating 'inflated' by suspicious reviews",
+            f"Out of the 100 reviews the Anomaly Detection model flagged as most suspicious, {len(b5i_impact)} "
+            f"products are affected, and {n_inflated2} of them would see their rating **drop** if the "
+            "suspicious reviews were removed (meaning they were likely inflated)",
+            "Send this product list to the Trust & Safety team for review first — results are only "
+            "'suspicious', never penalize a user based on this score directly, a human must always review",
         ))
 
     b4i_words = dl.load_model_output("b4_topic_words.csv")
@@ -404,18 +413,18 @@ with tab_insight:
             words = b4i_words[(b4i_words.topic_id == int(tid)) & (b4i_words["rank"] <= 3)].word.tolist()
             lines.append(f"{cat} → {', '.join(words)}")
         insights.append((
-            "6. แต่ละหมวดมีปัญหาเด่นต่างกันชัดเจน",
+            "6. Each category has a clearly distinct top complaint",
             " | ".join(lines),
-            "ส่งหัวข้อที่พบบ่อยที่สุดของแต่ละหมวดให้ทีมพัฒนาสินค้า/ทีมเขียนรายละเอียดสินค้าแก้ตรงจุด "
-            "แทนการแก้ปัญหาแบบเหมารวมทั้งพอร์ต",
+            "Route each category's most common topic to the product/copywriting team that owns it, "
+            "instead of applying a one-size-fits-all fix across the whole portfolio",
         ))
 
     insights.append((
-        "7. อย่าตีความปริมาณรีวิวปี 2022–2023 ว่าดีมานด์กำลังหด",
-        "จำนวนรีวิวร่วงจาก ~468K (2021) เหลือ ~58K (2023) ซึ่งเป็นข้อจำกัดของการเก็บข้อมูลต้นทาง "
-        "(เก็บถึงแค่ ก.ย. 2023) ไม่ใช่ความสนใจของลูกค้าที่ลดลงจริง",
-        "รายงานแนวโน้มด้วยคะแนนเฉลี่ยแทนจำนวนรีวิวเมื่อพูดถึงปี 2022 เป็นต้นไป และตัดปีที่ข้อมูลไม่ครบ "
-        "ออกจากกราฟเปรียบเทียบเชิงปริมาณ",
+        "7. Don't read the drop in 2022–2023 review volume as shrinking demand",
+        "Review count fell from ~468K (2021) to ~58K (2023), which is a limitation of the source data "
+        "collection (only through Sep 2023), not an actual drop in customer interest",
+        "Report trends with average rating rather than review count from 2022 onward, and exclude "
+        "incomplete years from volume-based comparison charts",
     ))
 
     for title, finding, rec in insights:
@@ -423,25 +432,130 @@ with tab_insight:
             st.markdown(f"**{title}**")
             if finding:
                 st.write(finding)
-            st.markdown(f"➡️ **ข้อเสนอแนะ:** {rec}")
+            st.markdown(f"➡️ **Recommendation:** {rec}")
+
+# ═══════════════════════════════════════ TAB: PIPELINE ═════════════════════════════════════════
+with tab_pipeline:
+    st.markdown("### 🔧 How the data gets here — ELT + ML pipeline")
+    st.caption(
+        "An overview of the pipeline behind this dashboard, from raw Amazon Reviews 2023 JSONL "
+        "to the star schema and pre-trained models this page reads from."
+    )
+
+    st.markdown("#### 1. ELT pipeline (not ETL)")
+    st.markdown(
+        "Raw data is extracted and loaded first, then transformed **inside DuckDB with SQL** — "
+        "instead of transforming in application code before loading. This keeps every "
+        "transformation inspectable as plain SQL and lets DuckDB do the heavy lifting directly "
+        "on Parquet files."
+    )
+
+    stage_cols = st.columns(5)
+    stages = [
+        ("1️⃣ Extract", "elt/extract.py", "Download raw review + metadata JSONL for the 3 categories from the Amazon Reviews 2023 source on Hugging Face."),
+        ("2️⃣ Load", "elt/load.py", "Load raw JSONL into DuckDB as staging tables, no transformation yet."),
+        ("3️⃣ Transform", "elt/sql/*.sql", "SQL builds staging → dimensions → facts, incl. a clean_text() macro that strips HTML/entities from review text, plus 10 automated quality checks."),
+        ("4️⃣ Export", "elt/export.py", "Write the resulting star schema out to partitioned Parquet files."),
+        ("5️⃣ Publish", "elt/publish.py", "Push the Parquet dataset to a public Hugging Face dataset repo, so the dashboard (and anyone else) can read it with zero setup."),
+    ]
+    for col, (name, path, desc) in zip(stage_cols, stages):
+        with col:
+            st.markdown(f"**{name}**")
+            st.code(path, language=None)
+            st.caption(desc)
+
+    st.markdown(
+        "Every stage stops the pipeline if a quality check fails (`elt/sql/40_quality_checks.sql`) "
+        "— verified by deliberately feeding it bad data during testing and confirming the export "
+        "step never runs."
+    )
+
+    st.divider()
+
+    st.markdown("#### 2. Star schema (dataset #1)")
+    svg_path = Path(__file__).resolve().parents[1] / "docs" / "star_schema.svg"
+    col_schema, col_tables = st.columns([3, 2])
+    with col_schema:
+        if svg_path.exists():
+            st.image(str(svg_path), width="stretch")
+        else:
+            st.info("star_schema.svg not found at docs/star_schema.svg")
+    with col_tables:
+        st.markdown(
+            "- **fact_review** — 1 row per review (grain), ~3.66M rows\n"
+            "- **review_text** — full review text, split out from the fact table\n"
+            "- **dim_product** — product attributes, price band, brand\n"
+            "- **dim_user** — reviewer segment (One-off / Regular / Power reviewer)\n"
+            "- **dim_date** — calendar attributes for the review timestamp\n\n"
+            "Engine: **DuckDB**, querying Parquet files directly — no database server needed."
+        )
+
+    st.divider()
+
+    st.markdown("#### 3. ML pipeline (questions B1–B5)")
+    st.markdown(
+        "`preprocessing/` builds train/val/test splits (by review year) and features from "
+        "dataset #2 (analytics-ready). `model/model.ipynb` trains all 5 models against those "
+        "splits, evaluates each one against a baseline, and saves every model plus its output "
+        "table to disk. **This dashboard only loads those saved files — it never retrains "
+        "live**, which is why the Model Insights tab doesn't react to the year/verified filters."
+    )
+    model_rows = pd.DataFrame([
+        {"Question": "B1", "Task": "Regression", "Model": "Ridge / GradientBoosting vs baseline", "Predicts": "Rating for products with a known price"},
+        {"Question": "B2", "Task": "Classification", "Model": "TF-IDF + Logistic Regression", "Predicts": "Sentiment, to catch rating/text mismatches"},
+        {"Question": "B3", "Task": "Clustering", "Model": "K-Means", "Predicts": "Performance-based product groups"},
+        {"Question": "B4", "Task": "Topic Modeling", "Model": "LDA", "Predicts": "Complaint topics in negative reviews"},
+        {"Question": "B5", "Task": "Anomaly Detection", "Model": "Isolation Forest + TF-IDF near-dup", "Predicts": "Reviews suspicious of being fake/paid"},
+    ])
+    st.dataframe(model_rows, hide_index=True, width="stretch")
+
+    with st.expander("Artifacts loaded by this dashboard"):
+        art_col1, art_col2 = st.columns(2)
+        with art_col1:
+            st.markdown("**Trained models** (`data/model_artifacts/`)")
+            artifacts = dl.model_artifacts_available()
+            if artifacts:
+                for name in sorted(artifacts):
+                    st.caption(f"✅ {name}.joblib")
+            else:
+                st.caption("None found yet — run `model/model.ipynb`")
+        with art_col2:
+            st.markdown("**Result tables** (`data/model_output/`)")
+            for fname in sorted({
+                "b1_regression_metrics.json", "b2_mismatch_reviews.csv", "b3_cluster_profile.csv",
+                "b3_product_clusters.parquet", "b4_topic_words.csv", "b4_category_topic_share.csv",
+                "b4_yearly_topic_share.csv", "b5_anomaly_candidates.csv", "b5_impact_summary.csv",
+            }):
+                exists = (dl.MODEL_OUTPUT_DIR / fname).exists()
+                st.caption(f"{'✅' if exists else '❌'} {fname}")
+
+    st.divider()
+
+    st.markdown("#### 4. Tech stack")
+    st.markdown(
+        "`DuckDB` · `Parquet` · `pandas` / `pyarrow` · `scikit-learn` · `Hugging Face Hub` "
+        "(dataset hosting) · `Streamlit` + `Plotly` (this dashboard)"
+    )
+    st.caption("Full details: `elt/` for the ELT pipeline source, `model/model.ipynb` for training code, `docs/business_questions.md` for every SQL query behind Q1–Q6.")
 
 # ═══════════════════════════════════════ TAB: CAVEATS ══════════════════════════════════════════
 with tab_caveat:
-    st.markdown("### ⚠️ ข้อจำกัดของข้อมูลที่ต้องรู้ก่อนใช้ dashboard นี้")
+    st.markdown("### ⚠️ Data limitations to know before using this dashboard")
     st.markdown("""
-- **ไม่มีข้อมูลยอดขาย** — จำนวนรีวิวเป็นตัวแทนคร่าว ๆ ของดีมานด์เท่านั้น ห้ามสรุปเป็นรายได้หรือส่วนแบ่งตลาด
-- **Selection bias** — มีแต่คนที่เลือกจะรีวิว คนพอใจมาก/ไม่พอใจมากมีแนวโน้มรีวิวมากกว่าคนเฉย ๆ
-  คะแนนเฉลี่ยจึงสูงกว่าความพึงพอใจจริงของคนซื้อทั้งหมด
-- **ราคาขาดหาย ~79% ของรีวิว แบบไม่สุ่ม (MNAR)** — ดูรายละเอียดที่แท็บ Analytics คำถาม Q3
-- **ปริมาณรีวิวปี 2022 เป็นต้นไปเก็บไม่ครบ** — ชุดข้อมูลต้นทางเก็บถึง ก.ย. 2023 เท่านั้น
-- **`dim_user` คำนวณจาก 3 หมวดนี้เท่านั้น** ไม่ใช่ประวัติการซื้อขายทั้งหมดของผู้ใช้บน Amazon
-- **B1 (regression)** อ้างได้เฉพาะสินค้าที่รู้ราคา (~21% ของรีวิว) ซึ่งคะแนนสูงกว่าค่าเฉลี่ยอยู่แล้ว
-- **B2 มี distribution shift** — สัดส่วนรีวิวเชิงลบใน test สูงกว่า train ตามธรรมชาติของข้อมูล
-- **B4 (topic modeling)** — ชื่อ topic มาจากคำเด่นอัตโนมัติ ควรอ่านตัวอย่างรีวิวจริงประกอบก่อนสรุป
-- **B5 (anomaly detection) ให้ผลเป็น "น่าสงสัย" ไม่ใช่ "ปลอมแน่นอน"** — ไม่มี label ยืนยัน
-  ห้ามเอาไปลงโทษผู้ใช้ ใช้คัดกรองเบื้องต้นแล้วให้คนตรวจซ้ำเท่านั้น
+- **No sales data** — review count is only a rough proxy for demand, don't read it as revenue or market share
+- **Selection bias** — only people who chose to review are represented; very happy/unhappy customers tend
+  to review more than neutral ones, so the average rating skews higher than true overall satisfaction
+- **Price is missing on ~79% of reviews, not-at-random (MNAR)** — see the Analytics tab, Q3, for details
+- **2022-onward review volume is incomplete** — the source dataset was only collected through Sep 2023
+- **`dim_user` is computed from these 3 categories only**, not a user's full Amazon purchase history
+- **B1 (regression)** only applies to products with a known price (~21% of reviews), which already rate above average
+- **B2 has a distribution shift** — the share of negative reviews is naturally higher in test than in train
+- **B4 (topic modeling)** — topic names come from automatically extracted top words; read real sample
+  reviews before drawing conclusions
+- **B5 (anomaly detection) gives "suspicious", not "confirmed fake"** — there's no verified label,
+  never use it to penalize a user directly, use it for initial screening with a human review only
     """)
     st.caption(
-        "รายละเอียดเชิงลึกทั้งหมด: `docs/business_questions.md` · "
+        "Full details: `docs/business_questions.md` · "
         "`analytics/Answer_Analytic.ipynb` · `model/model.ipynb`"
     )
