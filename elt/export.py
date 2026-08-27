@@ -7,6 +7,9 @@
     dim_product.parquet
     dim_user.parquet
     dim_date.parquet
+    dim_brand.parquet
+    dim_category.parquet
+    dim_reviewer_segment.parquet
     stats.json
     README.md                                dataset card
 
@@ -21,7 +24,7 @@ from elt.common import ROOT, connect, folder_size, human_bytes, load_config
 from elt.dataset_card import render_elt_card
 
 PARTITIONED = ["fact_review", "review_text"]
-FLAT = ["dim_product", "dim_user", "dim_date"]
+FLAT = ["dim_product", "dim_user", "dim_date", "dim_brand", "dim_category", "dim_reviewer_segment"]
 
 
 def main() -> None:

@@ -20,6 +20,23 @@ WITH checks AS (
     UNION ALL SELECT 'duplicate user_key in dim_user',
            coalesce(sum(n - 1), 0) FROM (
                SELECT count(*) AS n FROM marts.dim_user GROUP BY user_key HAVING count(*) > 1)
+    UNION ALL SELECT 'duplicate brand_key in dim_brand',
+           coalesce(sum(n - 1), 0) FROM (
+               SELECT count(*) AS n FROM marts.dim_brand GROUP BY brand_key HAVING count(*) > 1)
+    UNION ALL SELECT 'duplicate category_key in dim_category',
+           coalesce(sum(n - 1), 0) FROM (
+               SELECT count(*) AS n FROM marts.dim_category GROUP BY category_key HAVING count(*) > 1)
+    -- brand_key/category_key/reviewer_segment_key เป็น NULL ได้ตามปกติ (สินค้าไม่มี
+    -- metadata ของ store/main_category) เช็คแค่ว่าค่าที่ "ไม่ใช่ NULL" ต้อง join ติดจริง
+    UNION ALL SELECT 'fact brand_key set but not in dim_brand',
+           count(*) FROM (SELECT * FROM marts.fact_review WHERE brand_key IS NOT NULL) f
+                     ANTI JOIN marts.dim_brand USING (brand_key)
+    UNION ALL SELECT 'fact category_key set but not in dim_category',
+           count(*) FROM (SELECT * FROM marts.fact_review WHERE category_key IS NOT NULL) f
+                     ANTI JOIN marts.dim_category USING (category_key)
+    UNION ALL SELECT 'fact reviewer_segment_key set but not in dim_reviewer_segment',
+           count(*) FROM (SELECT * FROM marts.fact_review WHERE reviewer_segment_key IS NOT NULL) f
+                     ANTI JOIN marts.dim_reviewer_segment USING (reviewer_segment_key)
     UNION ALL SELECT 'ratings outside 1-5',
            count(*) FROM marts.fact_review WHERE rating NOT BETWEEN 1 AND 5
     UNION ALL SELECT 'negative helpful votes',

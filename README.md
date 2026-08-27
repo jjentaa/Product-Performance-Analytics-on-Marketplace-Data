@@ -49,7 +49,7 @@ Hugging Face          ┌──────────── Stage 1: ELT ─�
 - แปลง `price` จาก string (`"None"`, `"14.99"`) เป็นตัวเลข แล้วจัดกลุ่มเป็น `price_band`
 - สินค้าที่มีรีวิวแต่ไม่มี metadata ยังได้แถวใน `dim_product` (ธง `has_metadata = false`)
   → fact ไม่มีแถวกำพร้า
-- quality checks 10 ข้อ ถ้าไม่ผ่านสักข้อ export จะไม่ยอมเขียนไฟล์ออก
+- quality checks 15 ข้อ ถ้าไม่ผ่านสักข้อ export จะไม่ยอมเขียนไฟล์ออก
 
 **ยังไม่ทำ** — ล้าง HTML ในข้อความ, feature engineering, แบ่ง train/test (ยกไป stage 2
 เพื่อให้ dataset #1 ใกล้เคียงต้นฉบับที่สุด)
@@ -374,7 +374,7 @@ elt/
   load.py                        โหลดเข้า DuckDB schema raw
   transform.py                   รัน SQL ตามลำดับ + quality checks
   sql/10_staging.sql             raw -> staging (type, dedupe, กรองแถวเสีย)
-  sql/20_dimensions.sql          dim_date, dim_product, dim_user
+  sql/20_dimensions.sql          dim_date, dim_product, dim_user, dim_brand, dim_category, dim_reviewer_segment
   sql/30_facts.sql               fact_review + review_text
   sql/40_quality_checks.sql      view ตรวจคุณภาพ + สรุปรายหมวด
   export.py                      marts -> Parquet + dataset card

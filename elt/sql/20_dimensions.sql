@@ -88,3 +88,42 @@ SELECT
     END AS reviewer_segment
 FROM staging.stg_reviews
 GROUP BY user_id;
+
+-- dim_brand: 1 แถวต่อ 1 แบรนด์ (store) — แยกออกจาก dim_product เพื่อไม่ให้ชื่อ
+-- แบรนด์ซ้ำอยู่ในทุกแถวสินค้าของแบรนด์เดียวกัน (dim_product ยังเก็บ store ไว้
+-- เหมือนเดิมด้วย เพื่อไม่ให้ query เดิมที่ join ตรงกับ dim_product พังกัน)
+CREATE OR REPLACE TABLE marts.dim_brand AS
+SELECT
+    row_number() OVER (ORDER BY store) AS brand_key,
+    store                               AS brand_name,
+    count(*)                            AS n_products
+FROM marts.dim_product
+WHERE store IS NOT NULL
+GROUP BY store;
+
+-- dim_category: 1 แถวต่อ (main_category, category) — main_category คือหมวดย่อย
+-- ละเอียดจริงจาก metadata Amazon (เช่น "Skin Care") ต่างจาก category ซึ่งเป็น
+-- หมวดใหญ่ 3 หมวดที่ใช้ partition ไฟล์ (ดูคอลัมน์ parent_category)
+CREATE OR REPLACE TABLE marts.dim_category AS
+SELECT
+    row_number() OVER (ORDER BY category, main_category) AS category_key,
+    main_category,
+    category                                              AS parent_category,
+    count(*)                                              AS n_products
+FROM marts.dim_product
+WHERE main_category IS NOT NULL
+GROUP BY category, main_category;
+
+-- dim_reviewer_segment: lookup คงที่ 3 แถว ตามเกณฑ์เดียวกับที่ใช้แบ่งใน dim_user
+-- (junk dimension) — แยกออกมาให้ fact join ตรงถึงกลุ่มผู้รีวิวได้โดยไม่ต้องผ่าน dim_user
+CREATE OR REPLACE TABLE marts.dim_reviewer_segment (
+    reviewer_segment_key INTEGER,
+    reviewer_segment      VARCHAR,
+    min_reviews           INTEGER,
+    max_reviews           INTEGER,
+    description            VARCHAR
+);
+INSERT INTO marts.dim_reviewer_segment VALUES
+    (1, 'One-off',        0,  2,    'Reviewed 1-2 times total'),
+    (2, 'Regular',        3,  9,    'Reviewed 3-9 times total'),
+    (3, 'Power reviewer',  10, NULL, 'Reviewed 10+ times total');

@@ -8,7 +8,10 @@ from pathlib import Path
 from elt.common import connect, load_config
 
 SQL_DIR = Path(__file__).resolve().parent / "sql"
-MART_TABLES = ("fact_review", "review_text", "dim_product", "dim_user", "dim_date")
+MART_TABLES = (
+    "fact_review", "review_text", "dim_product", "dim_user", "dim_date",
+    "dim_brand", "dim_category", "dim_reviewer_segment",
+)
 
 
 def main() -> None:

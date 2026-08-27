@@ -13,6 +13,9 @@ SELECT
     CAST(strftime(r.review_date, '%Y%m%d') AS INTEGER) AS date_key,
     p.product_key,
     u.user_key,
+    b.brand_key,
+    c.category_key,
+    rs.reviewer_segment_key,
     r.category,
     r.rating,
     r.helpful_vote,
@@ -23,7 +26,13 @@ SELECT
     r.review_ts
 FROM staging.stg_reviews r
 LEFT JOIN marts.dim_product p USING (parent_asin)
-LEFT JOIN marts.dim_user u USING (user_id);
+LEFT JOIN marts.dim_user u USING (user_id)
+LEFT JOIN marts.dim_brand b
+       ON b.brand_name = p.store
+LEFT JOIN marts.dim_category c
+       ON c.main_category = p.main_category AND c.parent_category = p.category
+LEFT JOIN marts.dim_reviewer_segment rs
+       ON rs.reviewer_segment = u.reviewer_segment;
 
 -- ข้อความรีวิว "ดิบ" ยังไม่ทำความสะอาด — stage preprocessing จะมารับช่วงต่อ
 CREATE OR REPLACE TABLE marts.review_text AS

@@ -35,6 +35,9 @@ size_categories:
 | `dim_product.parquet` | {dim_product:,} | 1 แถว = 1 สินค้า (`parent_asin`) |
 | `dim_user.parquet` | {dim_user:,} | 1 แถว = 1 คนรีวิว |
 | `dim_date.parquet` | {dim_date:,} | 1 แถว = 1 วัน |
+| `dim_brand.parquet` | {dim_brand:,} | 1 แถว = 1 แบรนด์ (`store`) |
+| `dim_category.parquet` | {dim_category:,} | 1 แถว = 1 หมวดย่อย (`main_category`) |
+| `dim_reviewer_segment.parquet` | {dim_reviewer_segment:,} | lookup คงที่ 3 กลุ่มผู้รีวิว |
 
 `fact_review/` และ `review_text/` แบ่ง partition ตามหมวด (`category=<name>/`)
 อ่านทีละหมวดได้โดยไม่ต้องสแกนทั้งชุด
@@ -71,7 +74,10 @@ pd.read_parquet("hf://datasets/{repo_id}/fact_review",
 | `date_key` | int32 | → `dim_date`, รูปแบบ YYYYMMDD |
 | `product_key` | int64 | → `dim_product` |
 | `user_key` | int64 | → `dim_user` |
-| `category` | string | partition key |
+| `brand_key` | int64 | → `dim_brand` (null ถ้าสินค้าไม่มีข้อมูลแบรนด์) |
+| `category_key` | int64 | → `dim_category` (null ถ้าสินค้าไม่มี main_category) |
+| `reviewer_segment_key` | int32 | → `dim_reviewer_segment` |
+| `category` | string | partition key (หมวดใหญ่ 3 หมวด — ดู `dim_category` สำหรับหมวดย่อยละเอียดกว่า) |
 | `rating` | double | 1–5 |
 | `helpful_vote` | int64 | จำนวนคนกดว่ามีประโยชน์ |
 | `verified_purchase` | bool | ซื้อจริงหรือไม่ |
@@ -86,6 +92,12 @@ pd.read_parquet("hf://datasets/{repo_id}/fact_review",
 `verified_share`, `first`/`last_review_date`, `reviewer_segment`
 (Power reviewer / Regular / One-off)
 
+`dim_brand` (`brand_name`, `n_products`), `dim_category` (`main_category`,
+`parent_category`, `n_products`), และ `dim_reviewer_segment` (`reviewer_segment`,
+`min_reviews`, `max_reviews`, `description`) เป็น dimension เสริมที่แยกออกมาจาก
+`dim_product`/`dim_user` — คอลัมน์เดิม (`store`, `main_category`, `reviewer_segment`)
+ยังอยู่ครบเหมือนเดิม แค่เพิ่ม FK ให้ `fact_review` join ตรงถึงได้โดยไม่ต้องอ้อม
+
 ## สิ่งที่ทำในขั้นนี้
 
 - ลบรีวิวซ้ำด้วย (`user_id`, `asin`, `timestamp`)
@@ -94,7 +106,7 @@ pd.read_parquet("hf://datasets/{repo_id}/fact_review",
 - แปลง `price` จาก string เป็นตัวเลข แล้วจัดกลุ่มเป็น `price_band`
 - สินค้าที่มีรีวิวแต่ไม่มี metadata ยังได้แถวใน `dim_product`
   (ธง `has_metadata = false`) — fact จึงไม่มีแถวกำพร้า
-- ผ่าน quality checks 10 ข้อ (referential integrity, ค่าซ้ำ, ค่านอกช่วง)
+- ผ่าน quality checks 15 ข้อ (referential integrity, ค่าซ้ำ, ค่านอกช่วง)
 
 **ยังไม่ได้ทำ:** ล้าง HTML ในข้อความ, feature engineering, แบ่ง train/test —
 อยู่ใน stage 2
