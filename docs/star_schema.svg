@@ -1,154 +1,214 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 927" width="1200" height="927" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
-<rect width="1200" height="927" fill="#ffffff"/>
-<text x="600" y="30" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2328">Amazon Reviews 2023 — Beauty &amp; Personal Care</text>
-<text x="600" y="52" text-anchor="middle" font-size="13" font-weight="600" fill="#0969da">Star Schema — grain: 1 row = 1 review</text>
-<text x="600" y="70" text-anchor="middle" font-size="12" fill="#57606a">3.66M reviews &#183; 999K products &#183; 2.92M reviewers &#183; 2000–2023</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 1065" width="1220" height="1065" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<rect width="1220" height="1065" fill="#ffffff"/>
+<text x="610" y="30" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2328">Amazon Reviews 2023 — Beauty &amp; Personal Care</text>
+<text x="610" y="52" text-anchor="middle" font-size="13" font-weight="600" fill="#0969da">Star Schema — grain: 1 row = 1 review</text>
+<text x="610" y="70" text-anchor="middle" font-size="12" fill="#57606a">3.66M reviews &#183; 999K products &#183; 2.92M reviewers &#183; 136K brands &#183; 2000–2023</text>
 <!-- ============ dim_date ============ -->
 <g>
- <rect x="450" y="80" width="300" height="235" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
- <rect x="450" y="80" width="300" height="28" rx="7" fill="#2da44e"/>
- <rect x="450" y="98" width="300" height="10" fill="#2da44e"/>
- <text x="600" y="99" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_date</text>
- <text x="464" y="126" font-size="12" font-weight="700" fill="#1f2328">date_key (PK)</text>
- <text x="736" y="126" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
- <text x="464" y="145" font-size="12" fill="#1f2328">full_date</text>
- <text x="736" y="145" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DATE</text>
- <text x="464" y="164" font-size="12" fill="#1f2328">year</text>
- <text x="736" y="164" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="183" font-size="12" fill="#1f2328">quarter</text>
- <text x="736" y="183" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="202" font-size="12" fill="#1f2328">month</text>
- <text x="736" y="202" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="221" font-size="12" fill="#1f2328">month_name</text>
- <text x="736" y="221" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="240" font-size="12" fill="#1f2328">week_of_year</text>
- <text x="736" y="240" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="259" font-size="12" fill="#1f2328">day_of_week</text>
- <text x="736" y="259" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="278" font-size="12" fill="#1f2328">day_name</text>
- <text x="736" y="278" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="297" font-size="12" fill="#1f2328">is_weekend</text>
- <text x="736" y="297" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+ <rect x="460" y="80" width="300" height="235" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+ <rect x="460" y="80" width="300" height="28" rx="7" fill="#2da44e"/>
+ <rect x="460" y="98" width="300" height="10" fill="#2da44e"/>
+ <text x="610" y="99" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_date</text>
+ <text x="474" y="126" font-size="12" font-weight="700" fill="#1f2328">date_key (PK)</text>
+ <text x="746" y="126" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
+ <text x="474" y="145" font-size="12" fill="#1f2328">full_date</text>
+ <text x="746" y="145" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DATE</text>
+ <text x="474" y="164" font-size="12" fill="#1f2328">year</text>
+ <text x="746" y="164" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="183" font-size="12" fill="#1f2328">quarter</text>
+ <text x="746" y="183" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="202" font-size="12" fill="#1f2328">month</text>
+ <text x="746" y="202" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="221" font-size="12" fill="#1f2328">month_name</text>
+ <text x="746" y="221" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="240" font-size="12" fill="#1f2328">week_of_year</text>
+ <text x="746" y="240" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="259" font-size="12" fill="#1f2328">day_of_week</text>
+ <text x="746" y="259" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="278" font-size="12" fill="#1f2328">day_name</text>
+ <text x="746" y="278" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="297" font-size="12" fill="#1f2328">is_weekend</text>
+ <text x="746" y="297" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
 </g>
 <!-- ============ dim_product ============ -->
 <g>
- <rect x="50" y="394" width="300" height="254" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
- <rect x="50" y="394" width="300" height="28" rx="7" fill="#2da44e"/>
- <rect x="50" y="412" width="300" height="10" fill="#2da44e"/>
- <text x="200" y="413" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_product</text>
- <text x="64" y="440" font-size="12" font-weight="700" fill="#1f2328">product_key (PK)</text>
- <text x="336" y="440" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="64" y="459" font-size="12" fill="#1f2328">parent_asin</text>
+ <rect x="50" y="375" width="300" height="254" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+ <rect x="50" y="375" width="300" height="28" rx="7" fill="#2da44e"/>
+ <rect x="50" y="393" width="300" height="10" fill="#2da44e"/>
+ <text x="200" y="394" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_product</text>
+ <text x="64" y="421" font-size="12" font-weight="700" fill="#1f2328">product_key (PK)</text>
+ <text x="336" y="421" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="64" y="440" font-size="12" fill="#1f2328">parent_asin</text>
+ <text x="336" y="440" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="64" y="459" font-size="12" fill="#1f2328">product_title</text>
  <text x="336" y="459" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="64" y="478" font-size="12" fill="#1f2328">product_title</text>
+ <text x="64" y="478" font-size="12" fill="#1f2328">main_category</text>
  <text x="336" y="478" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="64" y="497" font-size="12" fill="#1f2328">main_category</text>
+ <text x="64" y="497" font-size="12" fill="#1f2328">store</text>
  <text x="336" y="497" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="64" y="516" font-size="12" fill="#1f2328">store</text>
- <text x="336" y="516" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="64" y="535" font-size="12" fill="#1f2328">price</text>
- <text x="336" y="535" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="64" y="554" font-size="12" fill="#1f2328">price_band</text>
- <text x="336" y="554" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="64" y="573" font-size="12" fill="#1f2328">listed_avg_rating</text>
- <text x="336" y="573" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="64" y="592" font-size="12" fill="#1f2328">listed_rating_count</text>
- <text x="336" y="592" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="64" y="611" font-size="12" fill="#1f2328">category</text>
- <text x="336" y="611" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="64" y="630" font-size="12" fill="#1f2328">has_metadata</text>
- <text x="336" y="630" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+ <text x="64" y="516" font-size="12" fill="#1f2328">price</text>
+ <text x="336" y="516" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="64" y="535" font-size="12" fill="#1f2328">price_band</text>
+ <text x="336" y="535" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="64" y="554" font-size="12" fill="#1f2328">listed_avg_rating</text>
+ <text x="336" y="554" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="64" y="573" font-size="12" fill="#1f2328">listed_rating_count</text>
+ <text x="336" y="573" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="64" y="592" font-size="12" fill="#1f2328">category</text>
+ <text x="336" y="592" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="64" y="611" font-size="12" fill="#1f2328">has_metadata</text>
+ <text x="336" y="611" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+</g>
+<!-- ============ dim_brand ============ -->
+<g>
+ <rect x="50" y="657" width="300" height="102" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+ <rect x="50" y="657" width="300" height="28" rx="7" fill="#2da44e"/>
+ <rect x="50" y="675" width="300" height="10" fill="#2da44e"/>
+ <text x="200" y="676" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_brand</text>
+ <text x="64" y="703" font-size="12" font-weight="700" fill="#1f2328">brand_key (PK)</text>
+ <text x="336" y="703" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="64" y="722" font-size="12" fill="#1f2328">brand_name</text>
+ <text x="336" y="722" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="64" y="741" font-size="12" fill="#1f2328">n_products</text>
+ <text x="336" y="741" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+</g>
+<!-- ============ dim_category ============ -->
+<g>
+ <rect x="50" y="787" width="300" height="121" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+ <rect x="50" y="787" width="300" height="28" rx="7" fill="#2da44e"/>
+ <rect x="50" y="805" width="300" height="10" fill="#2da44e"/>
+ <text x="200" y="806" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_category</text>
+ <text x="64" y="833" font-size="12" font-weight="700" fill="#1f2328">category_key (PK)</text>
+ <text x="336" y="833" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="64" y="852" font-size="12" fill="#1f2328">main_category</text>
+ <text x="336" y="852" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="64" y="871" font-size="12" fill="#1f2328">parent_category</text>
+ <text x="336" y="871" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="64" y="890" font-size="12" fill="#1f2328">n_products</text>
+ <text x="336" y="890" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
 </g>
 <!-- ============ dim_user ============ -->
 <g>
- <rect x="850" y="404" width="300" height="235" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
- <rect x="850" y="404" width="300" height="28" rx="7" fill="#2da44e"/>
- <rect x="850" y="422" width="300" height="10" fill="#2da44e"/>
- <text x="1000" y="423" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_user</text>
- <text x="864" y="450" font-size="12" font-weight="700" fill="#1f2328">user_key (PK)</text>
- <text x="1136" y="450" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="864" y="469" font-size="12" fill="#1f2328">user_id</text>
- <text x="1136" y="469" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="864" y="488" font-size="12" fill="#1f2328">lifetime_reviews</text>
- <text x="1136" y="488" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="864" y="507" font-size="12" fill="#1f2328">categories_reviewed</text>
- <text x="1136" y="507" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="864" y="526" font-size="12" fill="#1f2328">avg_rating_given</text>
- <text x="1136" y="526" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="864" y="545" font-size="12" fill="#1f2328">total_helpful_votes</text>
- <text x="1136" y="545" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="864" y="564" font-size="12" fill="#1f2328">verified_share</text>
- <text x="1136" y="564" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="864" y="583" font-size="12" fill="#1f2328">first_review_date</text>
- <text x="1136" y="583" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DATE</text>
- <text x="864" y="602" font-size="12" fill="#1f2328">last_review_date</text>
- <text x="1136" y="602" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DATE</text>
- <text x="864" y="621" font-size="12" fill="#1f2328">reviewer_segment</text>
- <text x="1136" y="621" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <rect x="870" y="440" width="300" height="235" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+ <rect x="870" y="440" width="300" height="28" rx="7" fill="#2da44e"/>
+ <rect x="870" y="458" width="300" height="10" fill="#2da44e"/>
+ <text x="1020" y="459" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_user</text>
+ <text x="884" y="486" font-size="12" font-weight="700" fill="#1f2328">user_key (PK)</text>
+ <text x="1156" y="486" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="884" y="505" font-size="12" fill="#1f2328">user_id</text>
+ <text x="1156" y="505" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="884" y="524" font-size="12" fill="#1f2328">lifetime_reviews</text>
+ <text x="1156" y="524" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="884" y="543" font-size="12" fill="#1f2328">categories_reviewed</text>
+ <text x="1156" y="543" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="884" y="562" font-size="12" fill="#1f2328">avg_rating_given</text>
+ <text x="1156" y="562" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="884" y="581" font-size="12" fill="#1f2328">total_helpful_votes</text>
+ <text x="1156" y="581" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="884" y="600" font-size="12" fill="#1f2328">verified_share</text>
+ <text x="1156" y="600" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="884" y="619" font-size="12" fill="#1f2328">first_review_date</text>
+ <text x="1156" y="619" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DATE</text>
+ <text x="884" y="638" font-size="12" fill="#1f2328">last_review_date</text>
+ <text x="1156" y="638" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DATE</text>
+ <text x="884" y="657" font-size="12" fill="#1f2328">reviewer_segment</text>
+ <text x="1156" y="657" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+</g>
+<!-- ============ dim_reviewer_segment ============ -->
+<g>
+ <rect x="870" y="703" width="300" height="140" rx="7" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+ <rect x="870" y="703" width="300" height="28" rx="7" fill="#2da44e"/>
+ <rect x="870" y="721" width="300" height="10" fill="#2da44e"/>
+ <text x="1020" y="722" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">dim_reviewer_segment</text>
+ <text x="884" y="749" font-size="12" font-weight="700" fill="#1f2328">reviewer_segment_key (PK)</text>
+ <text x="1156" y="749" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
+ <text x="884" y="768" font-size="12" fill="#1f2328">reviewer_segment</text>
+ <text x="1156" y="768" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="884" y="787" font-size="12" fill="#1f2328">min_reviews</text>
+ <text x="1156" y="787" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
+ <text x="884" y="806" font-size="12" fill="#1f2328">max_reviews</text>
+ <text x="1156" y="806" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
+ <text x="884" y="825" font-size="12" fill="#1f2328">description</text>
+ <text x="1156" y="825" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
 </g>
 <!-- ============ fact_review ============ -->
 <g>
- <rect x="450" y="385" width="300" height="273" rx="7" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
- <rect x="450" y="385" width="300" height="28" rx="7" fill="#0969da"/>
- <rect x="450" y="403" width="300" height="10" fill="#0969da"/>
- <text x="600" y="404" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">fact_review</text>
- <text x="464" y="431" font-size="12" font-weight="700" fill="#1f2328">review_id (PK)</text>
- <text x="736" y="431" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="450" font-size="12" font-style="italic" fill="#6639ba">date_key (FK)</text>
- <text x="736" y="450" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
- <text x="464" y="469" font-size="12" font-style="italic" fill="#6639ba">product_key (FK)</text>
- <text x="736" y="469" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="488" font-size="12" font-style="italic" fill="#6639ba">user_key (FK)</text>
- <text x="736" y="488" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="507" font-size="12" fill="#8a6d00">category (degenerate dim)</text>
- <text x="736" y="507" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <line x1="464" y1="517" x2="736" y2="517" stroke="#0969da" stroke-width="0.8" stroke-dasharray="3,3"/>
- <text x="464" y="526" font-size="12" fill="#1f2328">rating</text>
- <text x="736" y="526" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="464" y="545" font-size="12" fill="#1f2328">helpful_vote</text>
- <text x="736" y="545" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
- <text x="464" y="564" font-size="12" fill="#1f2328">verified_purchase</text>
- <text x="736" y="564" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
- <text x="464" y="583" font-size="12" fill="#1f2328">has_images</text>
- <text x="736" y="583" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
- <text x="464" y="602" font-size="12" fill="#1f2328">is_positive</text>
- <text x="736" y="602" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
- <text x="464" y="621" font-size="12" fill="#1f2328">is_negative</text>
- <text x="736" y="621" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
- <text x="464" y="640" font-size="12" fill="#1f2328">review_ts</text>
- <text x="736" y="640" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">TIMESTAMP</text>
+ <rect x="460" y="476" width="300" height="330" rx="7" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+ <rect x="460" y="476" width="300" height="28" rx="7" fill="#0969da"/>
+ <rect x="460" y="494" width="300" height="10" fill="#0969da"/>
+ <text x="610" y="495" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">fact_review</text>
+ <text x="474" y="522" font-size="12" font-weight="700" fill="#1f2328">review_id (PK)</text>
+ <text x="746" y="522" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="541" font-size="12" font-style="italic" fill="#6639ba">date_key (FK)</text>
+ <text x="746" y="541" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
+ <text x="474" y="560" font-size="12" font-style="italic" fill="#6639ba">product_key (FK)</text>
+ <text x="746" y="560" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="579" font-size="12" font-style="italic" fill="#6639ba">user_key (FK)</text>
+ <text x="746" y="579" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="598" font-size="12" font-style="italic" fill="#6639ba">brand_key (FK)</text>
+ <text x="746" y="598" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="617" font-size="12" font-style="italic" fill="#6639ba">category_key (FK)</text>
+ <text x="746" y="617" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="636" font-size="12" font-style="italic" fill="#6639ba">reviewer_segment_key (FK)</text>
+ <text x="746" y="636" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">INTEGER</text>
+ <text x="474" y="655" font-size="12" fill="#8a6d00">category (degenerate dim)</text>
+ <text x="746" y="655" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <line x1="474" y1="665" x2="746" y2="665" stroke="#0969da" stroke-width="0.8" stroke-dasharray="3,3"/>
+ <text x="474" y="674" font-size="12" fill="#1f2328">rating</text>
+ <text x="746" y="674" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="474" y="693" font-size="12" fill="#1f2328">helpful_vote</text>
+ <text x="746" y="693" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BIGINT</text>
+ <text x="474" y="712" font-size="12" fill="#1f2328">verified_purchase</text>
+ <text x="746" y="712" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+ <text x="474" y="731" font-size="12" fill="#1f2328">has_images</text>
+ <text x="746" y="731" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+ <text x="474" y="750" font-size="12" fill="#1f2328">is_positive</text>
+ <text x="746" y="750" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+ <text x="474" y="769" font-size="12" fill="#1f2328">is_negative</text>
+ <text x="746" y="769" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">BOOLEAN</text>
+ <text x="474" y="788" font-size="12" fill="#1f2328">review_ts</text>
+ <text x="746" y="788" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">TIMESTAMP</text>
 </g>
 <!-- ============ review_text ============ -->
 <g>
- <rect x="450" y="728" width="300" height="159" rx="7" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.5"/>
- <rect x="450" y="728" width="300" height="28" rx="7" fill="#bc4c00"/>
- <rect x="450" y="746" width="300" height="10" fill="#bc4c00"/>
- <text x="600" y="747" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">review_text</text>
- <text x="464" y="774" font-size="12" font-weight="700" fill="#1f2328">review_id (PK, FK)</text>
- <text x="736" y="774" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="793" font-size="12" fill="#1f2328">category</text>
- <text x="736" y="793" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="812" font-size="12" fill="#1f2328">parent_asin</text>
- <text x="736" y="812" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="831" font-size="12" fill="#1f2328">rating</text>
- <text x="736" y="831" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
- <text x="464" y="850" font-size="12" fill="#1f2328">review_title</text>
- <text x="736" y="850" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
- <text x="464" y="869" font-size="12" fill="#1f2328">review_text</text>
- <text x="736" y="869" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <rect x="460" y="866" width="300" height="159" rx="7" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.5"/>
+ <rect x="460" y="866" width="300" height="28" rx="7" fill="#bc4c00"/>
+ <rect x="460" y="884" width="300" height="10" fill="#bc4c00"/>
+ <text x="610" y="885" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">review_text</text>
+ <text x="474" y="912" font-size="12" font-weight="700" fill="#1f2328">review_id (PK, FK)</text>
+ <text x="746" y="912" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="931" font-size="12" fill="#1f2328">category</text>
+ <text x="746" y="931" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="950" font-size="12" fill="#1f2328">parent_asin</text>
+ <text x="746" y="950" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="969" font-size="12" fill="#1f2328">rating</text>
+ <text x="746" y="969" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">DOUBLE</text>
+ <text x="474" y="988" font-size="12" fill="#1f2328">review_title</text>
+ <text x="746" y="988" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
+ <text x="474" y="1007" font-size="12" fill="#1f2328">review_text</text>
+ <text x="746" y="1007" text-anchor="end" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">VARCHAR</text>
 </g>
 <!-- ============ edges ============ -->
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 600.0 315 L 600.0 385"/>
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 595 376 L 600.0 385 L 605 376"/>
-<text x="610.0" y="350.0" font-size="11" fill="#57606a">date_key</text>
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 350 521.0 L 450 521.5"/>
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 441 526 L 450 521.5 L 441 517"/>
-<text x="358" y="513.0" font-size="11" fill="#57606a">product_key</text>
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 850 521.5 L 750 521.5"/>
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 759 517 L 750 521.5 L 759 526"/>
-<text x="758" y="513.5" font-size="11" fill="#57606a">user_key</text>
-<path stroke="#57606a" stroke-width="1.6" fill="none" stroke-dasharray="6,4" d="M 600.0 658 L 600.0 728"/>
-<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 595 719 L 600.0 728 L 605 719"/>
-<text x="610.0" y="693.0" font-size="11" fill="#57606a">review_id (1:1)</text>
-<text x="50" y="901" font-size="11" font-weight="700" fill="#1f2328">PK</text><text x="80" y="901" font-size="11" fill="#57606a">primary key</text><text x="200" y="901" font-size="11" font-style="italic" fill="#6639ba">FK</text><text x="230" y="901" font-size="11" fill="#57606a">foreign key</text><text x="350" y="901" font-size="11" fill="#8a6d00">category</text><text x="410" y="901" font-size="11" fill="#57606a">degenerate dimension (partition column)</text><text x="940" y="901" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">TYPE</text><text x="975" y="901" font-size="11" fill="#57606a">DuckDB / Parquet physical type</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 610.0 315 L 610.0 476"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 606 468 L 610.0 476 L 614 468"/>
+<text x="618.0" y="395.5" font-size="10.5" fill="#57606a">date_key</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" stroke-dasharray="6,4" d="M 610.0 806 L 610.0 866"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 606 858 L 610.0 866 L 614 858"/>
+<text x="618.0" y="836.0" font-size="10.5" fill="#57606a">review_id (1:1)</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 350 502.0 L 460 502.0"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 452 506 L 460 502.0 L 452 498"/>
+<text x="356" y="496.0" font-size="10.5" fill="#57606a">product_key</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 350 708.0 L 460 708.0"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 452 712 L 460 708.0 L 452 704"/>
+<text x="356" y="702.0" font-size="10.5" fill="#57606a">brand_key</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 350 847.5 L 460 847.5"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 452 852 L 460 847.5 L 452 843"/>
+<text x="356" y="841.5" font-size="10.5" fill="#57606a">category_key</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 870 557.5 L 760 557.5"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 768 553 L 760 557.5 L 768 562"/>
+<text x="864" y="551.5" font-size="10.5" fill="#57606a" text-anchor="end">user_key</text>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 870 773.0 L 760 773.0"/>
+<path stroke="#57606a" stroke-width="1.6" fill="none" d="M 768 769 L 760 773.0 L 768 777"/>
+<text x="864" y="767.0" font-size="10.5" fill="#57606a" text-anchor="end">reviewer_segment_key</text>
+<text x="50" y="1039" font-size="11" font-weight="700" fill="#1f2328">PK</text><text x="80" y="1039" font-size="11" fill="#57606a">primary key</text><text x="200" y="1039" font-size="11" font-style="italic" fill="#6639ba">FK</text><text x="230" y="1039" font-size="11" fill="#57606a">foreign key</text><text x="350" y="1039" font-size="11" fill="#8a6d00">category</text><text x="410" y="1039" font-size="11" fill="#57606a">degenerate dimension (partition column)</text><text x="960" y="1039" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#57606a">TYPE</text><text x="995" y="1039" font-size="11" fill="#57606a">DuckDB / Parquet physical type</text>
 </svg>
